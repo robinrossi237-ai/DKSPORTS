@@ -1,0 +1,1309 @@
+{% extends "base.html" %}
+{% block title %}Virtual Game · {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ===== Virtual Game Page ===== */
+.vg-hero {
+  background: linear-gradient(135deg, var(--dk-primary) 0%, var(--dk-accent) 100%);
+  color: #fff; padding: 3rem 0 2rem; position: relative; overflow: hidden;
+}
+.vg-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: url('/static/img/hero-champions.png') center/cover no-repeat;
+  opacity: 0.08; pointer-events: none;
+}
+.vg-hero h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 800; letter-spacing: -1px; }
+.vg-hero .badge-house { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3); backdrop-filter: blur(6px); }
+
+/* ---- Setup Card ---- */
+.vg-setup-card {
+  background: var(--dk-surface, #fff);
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: 1.25rem; box-shadow: 0 8px 32px rgba(47,93,255,.08);
+}
+.vg-player-header { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: 0.5px; text-transform: uppercase; }
+.vg-player-1-col { border-right: 1px solid var(--dk-border, #e2e8f0); }
+@media (max-width:767px) { .vg-player-1-col { border-right: none; border-bottom: 1px solid var(--dk-border, #e2e8f0); } }
+
+/* ---- Team Logo Preview ---- */
+.vg-team-logo-wrap {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 3px solid var(--dk-border, #e2e8f0);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bs-body-bg); overflow: hidden; transition: border-color .25s;
+  margin: 0 auto .75rem;
+}
+.vg-team-logo-wrap img { width: 52px; height: 52px; object-fit: contain; }
+.vg-team-logo-wrap .bi { font-size: 1.75rem; color: var(--bs-secondary); }
+.vg-league-brand {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem .7rem;
+  border-radius: .85rem;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  background: rgba(47,93,255,.04);
+  margin: .65rem 0 .85rem;
+}
+.vg-league-brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: .7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  overflow: hidden;
+}
+.vg-league-brand-logo img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+.vg-league-brand-logo .bi {
+  font-size: 1rem;
+  color: var(--bs-secondary);
+}
+.vg-league-brand-copy {
+  min-width: 0;
+}
+.vg-league-brand-name {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+  line-height: 1.2;
+}
+.vg-league-brand-sub {
+  font-size: .72rem;
+  color: var(--bs-secondary);
+  margin-top: 2px;
+}
+
+/* ---- Bet Type Pills ---- */
+.vg-bet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.vg-bet-pill {
+  border: 1.5px solid var(--dk-border, #d1d5db); border-radius: .65rem;
+  padding: .4rem .5rem; font-size: .75rem; font-weight: 600;
+  cursor: pointer; text-align: center; background: transparent;
+  color: var(--bs-body-color); transition: all .18s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vg-bet-pill:hover { border-color: var(--dk-primary); color: var(--dk-primary); background: rgba(47,93,255,.07); }
+.vg-bet-pill.selected { background: var(--dk-primary); border-color: var(--dk-primary); color: #fff; }
+
+/* ---- Profit preview ---- */
+.vg-profit-bar {
+  border-radius: .75rem;
+  background: linear-gradient(90deg, rgba(47,93,255,.06) 0%, rgba(139,92,246,.06) 100%);
+  border: 1px solid rgba(47,93,255,.15); padding: .75rem 1rem; font-size: .82rem;
+}
+
+/* ---- VS Divider ---- */
+.vg-vs-divider {
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 800;
+  color: var(--dk-primary); padding: 0 .5rem;
+}
+
+/* ---- Launch button ---- */
+.vg-launch-btn {
+  background: linear-gradient(135deg, var(--dk-primary) 0%, var(--dk-accent) 100%);
+  border: none; color: #fff; font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.05rem; font-weight: 700; letter-spacing: .02em;
+  border-radius: 1rem; padding: .85rem 2.5rem;
+  transition: opacity .2s, transform .15s; width: 100%; max-width: 340px;
+}
+.vg-launch-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+.vg-launch-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---- Simulation Overlay ---- */
+.vg-sim-overlay {
+  display: none; position: fixed; inset: 0; z-index: 9999;
+  background: #060d20; flex-direction: column; align-items: stretch;
+}
+.vg-sim-overlay.active { display: flex; }
+
+/* scorebar */
+.sim-scorebar {
+  display: flex; align-items: center; justify-content: center;
+  gap: .75rem; padding: .75rem 1.5rem; background: rgba(255,255,255,.04);
+  border-bottom: 1px solid rgba(255,255,255,.08); flex-shrink: 0;
+}
+.sim-team-logo { width: 36px; height: 36px; object-fit: contain; }
+.sim-team-name { color: #fff; font-weight: 600; font-size: .9rem; max-width: 120px; text-align: center; line-height: 1.2; }
+.sim-score-box {
+  font-family: 'Space Grotesk', sans-serif; font-size: 2.2rem; font-weight: 800;
+  color: #fff; min-width: 90px; text-align: center; letter-spacing: -1px;
+  background: rgba(47,93,255,.18); border-radius: .75rem; padding: .15rem .9rem;
+  position: relative;
+}
+.sim-minute-badge {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  background: var(--dk-accent); color: #fff; font-size: .65rem;
+  font-weight: 700; border-radius: 99px; padding: 1px 8px;
+  white-space: nowrap;
+}
+
+/* SVG pitch */
+.sim-pitch-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: .5rem 1rem; min-height: 0;
+}
+#sim-pitch-svg {
+  width: 100%; max-width: 640px; max-height: 380px;
+  filter: drop-shadow(0 4px 24px rgba(0,0,0,.5));
+}
+
+/* event ticker */
+.sim-ticker-wrap {
+  height: 120px; overflow: hidden; border-top: 1px solid rgba(255,255,255,.07);
+  background: rgba(0,0,0,.3); flex-shrink: 0;
+}
+.sim-ticker {
+  display: flex; flex-direction: column-reverse;
+  height: 100%; overflow-y: auto; padding: .4rem .75rem;
+  scroll-behavior: smooth;
+}
+.sim-ticker::-webkit-scrollbar { width: 4px; }
+.sim-ticker::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+.ticker-event {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .3rem .4rem; border-radius: .4rem; margin-bottom: .25rem;
+  animation: tickerFadeIn .4s ease; font-size: .82rem;
+}
+.ticker-event.goal-event { background: rgba(34,197,94,.12); border-left: 3px solid #22c55e; }
+.ticker-event.card-event-y { background: rgba(234,179,8,.1); border-left: 3px solid #eab308; }
+.ticker-event.card-event-r { background: rgba(239,68,68,.12); border-left: 3px solid #ef4444; }
+.ticker-event.sub-event { background: rgba(99,102,241,.1); border-left: 3px solid #6366f1; }
+.ticker-event.kickoff-event { background: rgba(255,255,255,.05); border-left: 3px solid rgba(255,255,255,.3); }
+.ticker-minute { color: rgba(255,255,255,.5); font-size: .72rem; min-width: 28px; font-weight: 600; }
+.ticker-text { color: rgba(255,255,255,.9); }
+@keyframes tickerFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* goal flash */
+@keyframes goalFlash { 0%,100%{opacity:0} 20%,60%{opacity:1} }
+.goal-net-flash { animation: goalFlash 1.2s ease; }
+/* card flash */
+@keyframes cardPop { 0%{transform:scale(0) rotate(-15deg);opacity:0} 40%{transform:scale(1.2) rotate(5deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:0} }
+.card-popup {
+  position: fixed; top: 50%; left: 50%; z-index: 10000;
+  width: 40px; height: 56px; border-radius: 5px;
+  transform: translate(-50%,-50%);
+  animation: cardPop 1.8s ease forwards;
+}
+/* ball pulse on goal */
+@keyframes ballGoal { 0%{r:1.5} 50%{r:4} 100%{r:1.5} }
+
+/* ---- Result Card ---- */
+.vg-result-card { border-radius: 1.25rem; overflow: hidden; border: 1px solid var(--dk-border, #e2e8f0); box-shadow: 0 8px 40px rgba(47,93,255,.1); }
+.vg-result-header { background: linear-gradient(135deg, var(--dk-primary) 0%, var(--dk-accent) 100%); color: #fff; padding: 1.5rem; }
+.vg-score { font-family: 'Space Grotesk', sans-serif; font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+.vg-result-body { padding: 1.5rem; background: var(--dk-surface, #fff); }
+
+/* scorers section */
+.vg-scorers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.vg-scorer-col { }
+.vg-scorer-row {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .4rem .6rem; border-radius: .5rem;
+  background: rgba(34,197,94,.07); border: 1px solid rgba(34,197,94,.15);
+  font-size: .83rem; margin-bottom: .3rem;
+}
+.scorer-badge {
+  background: #22c55e; color: #fff; font-size: .65rem; font-weight: 700;
+  border-radius: 99px; padding: 1px 7px; white-space: nowrap;
+}
+.scorer-name { font-weight: 600; }
+.scorer-assist { font-size: .75rem; color: var(--bs-secondary); margin-top: 1px; }
+
+/* events timeline */
+.vg-timeline { }
+.timeline-item {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .35rem 0; border-bottom: 1px solid var(--dk-border, #f1f5f9);
+  font-size: .82rem;
+}
+.timeline-item:last-child { border-bottom: none; }
+.timeline-min {
+  min-width: 32px; font-weight: 700; font-size: .75rem;
+  color: var(--bs-secondary); text-align: right;
+}
+.timeline-icon { font-size: 1rem; flex-shrink: 0; }
+.timeline-text { flex: 1; }
+.timeline-team-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* stats bars */
+.stat-bar-wrap { margin-bottom: .7rem; }
+.stat-bar-label { display: flex; justify-content: space-between; font-size: .8rem; font-weight: 600; margin-bottom: .2rem; }
+.stat-bar-track { height: 8px; background: rgba(0,0,0,.07); border-radius: 99px; overflow: hidden; display: flex; }
+.stat-bar-home { background: linear-gradient(90deg, var(--dk-primary), #60a5fa); border-radius: 99px 0 0 99px; transition: width .6s ease; }
+.stat-bar-away { background: linear-gradient(90deg, var(--dk-accent), #ec4899); border-radius: 0 99px 99px 0; transition: width .6s ease; }
+[data-bs-theme="dark"] .stat-bar-track { background: rgba(255,255,255,.07); }
+
+/* lineups */
+.vg-lineups { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.lineup-col { }
+.lineup-player {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .25rem .5rem; border-radius: .4rem; font-size: .8rem;
+  margin-bottom: .15rem;
+}
+.lineup-player:hover { background: rgba(47,93,255,.06); }
+.lineup-num { min-width: 22px; font-weight: 700; font-size: .72rem; color: var(--bs-secondary); text-align: right; }
+.lineup-name { font-weight: 500; }
+.lineup-badge {
+  font-size: .65rem; font-weight: 700; padding: 1px 6px; border-radius: 99px;
+  background: rgba(34,197,94,.15); color: #15803d; margin-left: auto;
+}
+[data-bs-theme="dark"] .lineup-badge { background: rgba(34,197,94,.2); color: #4ade80; }
+.lineup-gk { background: rgba(234,179,8,.08); }
+
+/* winner badge */
+.vg-winner-badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #16a34a, #22c55e); color: #fff;
+  padding: .4rem 1.4rem; border-radius: 999px; font-weight: 700; font-size: .95rem;
+}
+.vg-winner-badge.house { background: linear-gradient(90deg, #dc2626, #ef4444); }
+.vg-winner-badge.draw-badge { background: linear-gradient(90deg, #d97706, #f59e0b); }
+
+/* payout row */
+.vg-payout-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .45rem 0; border-bottom: 1px solid var(--dk-border, #f1f5f9); font-size: .88rem;
+}
+.vg-payout-row:last-child { border-bottom: none; }
+
+/* history table */
+.vg-history-table { font-size: .82rem; }
+.vg-history-table thead th { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+
+/* Form controls */
+.vg-select, .vg-input {
+  border-radius: .6rem !important; font-size: .88rem !important;
+  border-color: var(--dk-border, #d1d5db) !important;
+}
+.vg-select:focus, .vg-input:focus {
+  border-color: var(--dk-primary) !important; box-shadow: 0 0 0 3px rgba(47,93,255,.15) !important;
+}
+
+/* Dark theme adjustments */
+[data-bs-theme="dark"] .vg-setup-card { background: #0f1629; border-color: #1e2d4a; }
+[data-bs-theme="dark"] .vg-profit-bar { background: rgba(47,93,255,.1); border-color: rgba(47,93,255,.2); }
+[data-bs-theme="dark"] .vg-player-1-col { border-color: #1e2d4a; }
+[data-bs-theme="dark"] .vg-result-card { border-color: #1e2d4a; }
+[data-bs-theme="dark"] .vg-result-body { background: #0f1629; }
+[data-bs-theme="dark"] .vg-bet-pill { border-color: #2a3a54; color: #94a3b8; }
+[data-bs-theme="dark"] .vg-payout-row { border-color: #1e2d4a; }
+[data-bs-theme="dark"] .vg-team-logo-wrap { border-color: #1e2d4a; background: #0a101f; }
+[data-bs-theme="dark"] .vg-league-brand { border-color: #1e2d4a; background: rgba(255,255,255,.03); }
+[data-bs-theme="dark"] .vg-league-brand-logo { background: #0a101f; border-color: #1e2d4a; }
+[data-bs-theme="dark"] .vg-scorer-row { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.2); }
+[data-bs-theme="dark"] .timeline-item { border-color: #1e2d4a; }
+[data-bs-theme="dark"] .lineup-player:hover { background: rgba(47,93,255,.1); }
+[data-bs-theme="dark"] .lineup-gk { background: rgba(234,179,8,.1); }
+
+/* loading spinner */
+.vg-loading-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#fff; margin:0 3px; animation: dotBounce .9s infinite ease; }
+.vg-loading-dot:nth-child(2) { animation-delay:.15s; }
+.vg-loading-dot:nth-child(3) { animation-delay:.3s; }
+@keyframes dotBounce { 0%,80%,100%{transform:scale(.5);opacity:.4} 40%{transform:scale(1);opacity:1} }
+
+/* section divider */
+.vg-section-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--bs-secondary); margin-bottom: .75rem; padding-bottom: .3rem; border-bottom: 2px solid var(--dk-border, #f1f5f9); }
+[data-bs-theme="dark"] .vg-section-title { border-color: #1e2d4a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="vg-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-white-50">Home</a></li>
+        <li class="breadcrumb-item active text-white">Virtual Game</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center gap-3 flex-wrap mt-2">
+      <div>
+        <h1 class="mb-1"><i class="bi bi-controller me-2"></i>Virtual Game</h1>
+        <p class="mb-0 opacity-75">Two-player betting simulation — pick teams, place bets, watch the match unfold.</p>
+      </div>
+      <div class="ms-auto d-flex flex-column align-items-end gap-1">
+        <span class="badge vg-hero badge-house px-3 py-2">
+          <i class="bi bi-house-fill me-1"></i>{{ house_cut_pct }}% house cut
+        </span>
+        <span class="badge vg-hero badge-house px-3 py-2">
+          <i class="bi bi-cash-coin me-1"></i>Bet range: {{ min_bet }}–{{ max_bet }}
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  <!-- Result section -->
+  <div id="vg-result-section" class="mb-4" style="display:none!important"></div>
+
+  <!-- Setup Card -->
+  <div class="vg-setup-card p-4 mb-4" id="vg-setup-card">
+    <div class="row g-4">
+      <!-- Player 1 -->
+      <div class="col-md-5 vg-player-1-col">
+        <div class="vg-player-header text-primary mb-3">
+          <i class="bi bi-person-circle me-2"></i>Player 1 · Home
+        </div>
+        <div class="vg-team-logo-wrap" id="p1-logo-wrap"><i class="bi bi-shield-fill"></i></div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">League</label>
+          <select id="p1-league" class="form-select vg-select">
+            <option value="">— Pick a league —</option>
+            {% for league, teams in all_leagues.items() %}
+            <option value="{{ league }}" data-teams='{{ teams | tojson }}'>{{ league }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="vg-league-brand" id="p1-league-brand">
+          <div class="vg-league-brand-logo"><i class="bi bi-flag-fill"></i></div>
+          <div class="vg-league-brand-copy">
+            <div class="vg-league-brand-name">No league selected</div>
+            <div class="vg-league-brand-sub">Choose a league to load its teams and badge.</div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Team</label>
+          <select id="p1-team" class="form-select vg-select" disabled>
+            <option value="">— Select league first —</option>
+          </select>
+        </div>
+        <div class="vg-league-brand" id="p2-league-brand">
+          <div class="vg-league-brand-logo"><i class="bi bi-flag-fill"></i></div>
+          <div class="vg-league-brand-copy">
+            <div class="vg-league-brand-name">No league selected</div>
+            <div class="vg-league-brand-sub">Choose a league to load its teams and badge.</div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Bet Type</label>
+          <div class="vg-bet-grid" id="p1-bet-grid">
+            {% for val, label in bet_types.items() %}
+            <button type="button" class="vg-bet-pill" data-bet="{{ val }}" data-player="1" title="{{ label }}">{{ label }}</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="p1-bet-type" value="">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Bet Amount</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" id="p1-amount" class="form-control vg-input"
+              min="{{ min_bet }}" max="{{ max_bet }}" step="5" placeholder="{{ min_bet }}">
+          </div>
+          <div class="form-text">Min {{ min_bet }} · Max {{ max_bet }}</div>
+        </div>
+      </div>
+
+      <!-- VS -->
+      <div class="col-md-2 d-flex align-items-center justify-content-center">
+        <div class="vg-vs-divider flex-column text-center">
+          <div>VS</div>
+          <div class="mt-2 small fw-normal text-muted" style="font-family:Inter;font-size:.75rem;">Same bet amount</div>
+        </div>
+      </div>
+
+      <!-- Player 2 -->
+      <div class="col-md-5">
+        <div class="vg-player-header mb-3" style="color:var(--dk-accent)">
+          <i class="bi bi-person-circle me-2"></i>Player 2 · Away
+        </div>
+        <div class="vg-team-logo-wrap" id="p2-logo-wrap"><i class="bi bi-shield-fill"></i></div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">League</label>
+          <select id="p2-league" class="form-select vg-select">
+            <option value="">— Pick a league —</option>
+            {% for league, teams in all_leagues.items() %}
+            <option value="{{ league }}" data-teams='{{ teams | tojson }}'>{{ league }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Team</label>
+          <select id="p2-team" class="form-select vg-select" disabled>
+            <option value="">— Select league first —</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Bet Type</label>
+          <div class="vg-bet-grid" id="p2-bet-grid">
+            {% for val, label in bet_types.items() %}
+            <button type="button" class="vg-bet-pill" data-bet="{{ val }}" data-player="2" title="{{ label }}">{{ label }}</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="p2-bet-type" value="">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Bet Amount</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" id="p2-amount" class="form-control vg-input"
+              min="{{ min_bet }}" max="{{ max_bet }}" step="5" placeholder="{{ min_bet }}">
+          </div>
+          <div class="form-text">Min {{ min_bet }} · Max {{ max_bet }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profit preview bar -->
+    <div class="vg-profit-bar mt-3 d-flex flex-wrap gap-3 align-items-center justify-content-between" id="vg-profit-preview">
+      <div class="d-flex gap-3 flex-wrap">
+        <span>💰 <strong>Total pot:</strong> <span id="pp-total">$0</span></span>
+        <span>🏠 <strong>House ({{ house_cut_pct }}%):</strong> <span id="pp-house">$0</span></span>
+        <span>🏆 <strong>Winner gets:</strong> <span id="pp-winner">$0</span></span>
+      </div>
+      <div class="text-muted small" id="pp-status">Fill in both players' bets to see the breakdown.</div>
+    </div>
+
+    <!-- Launch -->
+    <div class="text-center mt-4">
+      <button id="vg-launch-btn" class="vg-launch-btn" disabled>
+        <i class="bi bi-play-circle-fill me-2"></i>Launch Match
+      </button>
+      <p class="text-muted small mt-2 mb-0" id="vg-validation-msg">Complete both players' setup to launch the match.</p>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Games</h5>
+        <button class="btn btn-sm btn-outline-danger" id="vg-clear-history">
+          <i class="bi bi-trash me-1"></i>Clear
+        </button>
+      </div>
+      <div id="vg-history-container">
+        <p class="text-muted small mb-0">No games played yet. Launch your first match above!</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SIMULATION OVERLAY ===== -->
+<div class="vg-sim-overlay" id="vg-overlay">
+  <!-- Scorebar -->
+  <div class="sim-scorebar">
+    <div class="d-flex flex-column align-items-center gap-1">
+      <img id="sim-home-logo" class="sim-team-logo" src="" alt="" onerror="this.style.display='none'">
+      <div class="sim-team-name" id="sim-home-name">Home</div>
+    </div>
+    <div class="sim-score-box" id="sim-score-box">
+      <div class="sim-minute-badge" id="sim-minute-badge">0'</div>
+      <span id="sim-score-home">0</span> – <span id="sim-score-away">0</span>
+    </div>
+    <div class="d-flex flex-column align-items-center gap-1">
+      <img id="sim-away-logo" class="sim-team-logo" src="" alt="" onerror="this.style.display='none'">
+      <div class="sim-team-name" id="sim-away-name">Away</div>
+    </div>
+  </div>
+
+  <!-- SVG Football Pitch -->
+  <div class="sim-pitch-wrap">
+    <svg id="sim-pitch-svg" viewBox="0 0 105 68" xmlns="http://www.w3.org/2000/svg">
+      <!-- Pitch base -->
+      <defs>
+        <linearGradient id="pitchGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#2d7a3a"/>
+          <stop offset="50%" style="stop-color:#369641"/>
+          <stop offset="100%" style="stop-color:#2d7a3a"/>
+        </linearGradient>
+        <filter id="glowGoal">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Stripes -->
+      <rect width="105" height="68" fill="url(#pitchGrad)"/>
+      <rect x="0" y="0" width="10.5" height="68" fill="rgba(0,0,0,.04)"/>
+      <rect x="21" y="0" width="10.5" height="68" fill="rgba(0,0,0,.04)"/>
+      <rect x="42" y="0" width="10.5" height="68" fill="rgba(0,0,0,.04)"/>
+      <rect x="63" y="0" width="10.5" height="68" fill="rgba(0,0,0,.04)"/>
+      <rect x="84" y="0" width="10.5" height="68" fill="rgba(0,0,0,.04)"/>
+
+      <!-- Pitch boundary -->
+      <rect x="0.5" y="0.5" width="104" height="67" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <!-- Center line -->
+      <line x1="52.5" y1="0.5" x2="52.5" y2="67.5" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <!-- Center circle -->
+      <circle cx="52.5" cy="34" r="9.15" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <circle cx="52.5" cy="34" r="0.6" fill="white"/>
+
+      <!-- Left penalty area -->
+      <rect x="0.5" y="13.84" width="16.5" height="40.32" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <!-- Left goal area -->
+      <rect x="0.5" y="24.84" width="5.5" height="18.32" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <!-- Left goal -->
+      <rect x="-2.5" y="28.5" width="3" height="11" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.8)" stroke-width="0.6"/>
+      <!-- Left penalty spot -->
+      <circle cx="11" cy="34" r="0.5" fill="white"/>
+      <!-- Left penalty arc -->
+      <path d="M 16.5 24.84 A 9.15 9.15 0 0 1 16.5 43.16" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5" stroke-dasharray="0"/>
+
+      <!-- Right penalty area -->
+      <rect x="88" y="13.84" width="16.5" height="40.32" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <!-- Right goal area -->
+      <rect x="99" y="24.84" width="5.5" height="18.32" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <!-- Right goal -->
+      <rect x="104.5" y="28.5" width="3" height="11" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.8)" stroke-width="0.6"/>
+      <!-- Right penalty spot -->
+      <circle cx="94" cy="34" r="0.5" fill="white"/>
+      <!-- Right penalty arc -->
+      <path d="M 88.5 24.84 A 9.15 9.15 0 0 0 88.5 43.16" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+
+      <!-- Corner arcs -->
+      <path d="M 0.5 3 A 2.5 2.5 0 0 1 3 0.5" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <path d="M 102 0.5 A 2.5 2.5 0 0 1 104.5 3" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <path d="M 0.5 65 A 2.5 2.5 0 0 0 3 67.5" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+      <path d="M 102 67.5 A 2.5 2.5 0 0 0 104.5 65" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="0.5"/>
+
+      <!-- Team labels -->
+      <text x="8" y="5.5" fill="rgba(255,255,255,.45)" font-size="3" font-family="Inter, sans-serif" text-anchor="middle" id="pitch-home-label">HOME</text>
+      <text x="97" y="5.5" fill="rgba(255,255,255,.45)" font-size="3" font-family="Inter, sans-serif" text-anchor="middle" id="pitch-away-label">AWAY</text>
+
+      <!-- Goal flash overlays (animated on goal) -->
+      <rect id="goal-flash-left" x="-2.5" y="28.5" width="20" height="11" rx="1" fill="rgba(34,197,94,0)"/>
+      <rect id="goal-flash-right" x="87" y="28.5" width="20" height="11" rx="1" fill="rgba(34,197,94,0)"/>
+
+      <!-- Shot markers group (appended dynamically) -->
+      <g id="sim-shots-g"></g>
+
+      <!-- Ball -->
+      <circle id="sim-ball" cx="52.5" cy="34" r="1.5" fill="white" stroke="#ccc" stroke-width="0.4">
+        <animate attributeName="r" values="1.5;1.8;1.5" dur="1.2s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+  </div>
+
+  <!-- Event Ticker -->
+  <div class="sim-ticker-wrap">
+    <div class="sim-ticker" id="sim-ticker">
+      <div class="ticker-event kickoff-event">
+        <span class="ticker-minute">0'</span>
+        <span class="ticker-text">⚽ &nbsp;<strong>Kick-off!</strong> — Match is underway</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function(){
+  "use strict";
+
+  const HOUSE_CUT = {{ house_cut_pct }} / 100;
+  const MIN_BET   = {{ min_bet }};
+  const MAX_BET   = {{ max_bet }};
+  const PLAYBACK_MS = 24000; // 24-second match playback
+  const LEAGUE_LOGOS = {{ league_logos | tojson }};
+
+  // State
+  let p1 = { league:"", team:"", teamName:"", logo:"", betType:"", amount:0 };
+  let p2 = { league:"", team:"", teamName:"", logo:"", betType:"", amount:0 };
+  let history = JSON.parse(localStorage.getItem("vg_history") || "[]");
+  let gameResult = null;
+  let animTimers = [];
+
+  const $ = id => document.getElementById(id);
+
+  // ===== Setup UI =====
+
+  function populateTeams(leagueSel, teamSel, logoWrap, state) {
+    const opt = leagueSel.options[leagueSel.selectedIndex];
+    const teams = opt && opt.dataset.teams ? JSON.parse(opt.dataset.teams) : [];
+    state.league = opt ? opt.value : "";
+    state.team = state.teamName = state.logo = "";
+    resetLogo(logoWrap);
+    setLeagueBrand($(`${leagueSel.id}-brand`), state.league);
+    teamSel.innerHTML = '<option value="">— Pick a team —</option>';
+    teams.forEach(t => {
+      const o = document.createElement("option");
+      o.value = t.name; o.text = t.name; o.dataset.logo = t.logo;
+      teamSel.appendChild(o);
+    });
+    teamSel.disabled = teams.length === 0;
+    validate();
+  }
+
+  function onTeamChange(teamSel, logoWrap, state) {
+    const opt = teamSel.options[teamSel.selectedIndex];
+    state.teamName = state.team = opt ? opt.value : "";
+    state.logo = opt ? (opt.dataset.logo || "") : "";
+    setLogo(logoWrap, state.logo, state.teamName);
+    validate();
+  }
+
+  function setLogo(wrap, src, name) {
+    wrap.innerHTML = src
+      ? `<img src="${src}" alt="${esc(name)}" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-shield-fill\\'></i>'">`
+      : '<i class="bi bi-shield-fill"></i>';
+  }
+  function resetLogo(wrap) { wrap.innerHTML = '<i class="bi bi-shield-fill"></i>'; }
+  function setLeagueBrand(wrap, leagueName) {
+    if (!wrap) {
+      return;
+    }
+    const logo = leagueName ? (LEAGUE_LOGOS[leagueName] || "") : "";
+    if (!leagueName) {
+      wrap.innerHTML = `
+        <div class="vg-league-brand-logo"><i class="bi bi-flag-fill"></i></div>
+        <div class="vg-league-brand-copy">
+          <div class="vg-league-brand-name">No league selected</div>
+          <div class="vg-league-brand-sub">Choose a league to load its teams and badge.</div>
+        </div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="vg-league-brand-logo">
+        ${logo ? `<img src="${logo}" alt="${esc(leagueName)}" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-flag-fill\\'></i>'">` : '<i class="bi bi-flag-fill"></i>'}
+      </div>
+      <div class="vg-league-brand-copy">
+        <div class="vg-league-brand-name">${esc(leagueName)}</div>
+        <div class="vg-league-brand-sub">League badge loaded and ready.</div>
+      </div>`;
+  }
+
+  $("p1-league").addEventListener("change", () => populateTeams($("p1-league"), $("p1-team"), $("p1-logo-wrap"), p1));
+  $("p2-league").addEventListener("change", () => populateTeams($("p2-league"), $("p2-team"), $("p2-logo-wrap"), p2));
+  $("p1-team").addEventListener("change",   () => onTeamChange($("p1-team"),   $("p1-logo-wrap"), p1));
+  $("p2-team").addEventListener("change",   () => onTeamChange($("p2-team"),   $("p2-logo-wrap"), p2));
+
+  document.querySelectorAll(".vg-bet-pill").forEach(btn => {
+    btn.addEventListener("click", function(){
+      const player = this.dataset.player;
+      $("p"+player+"-bet-grid").querySelectorAll(".vg-bet-pill").forEach(b => b.classList.remove("selected"));
+      this.classList.add("selected");
+      $("p"+player+"-bet-type").value = this.dataset.bet;
+      if (player==="1") p1.betType = this.dataset.bet; else p2.betType = this.dataset.bet;
+      validate();
+    });
+  });
+
+  [$("p1-amount"), $("p2-amount")].forEach(inp => {
+    inp.addEventListener("input", () => {
+      p1.amount = parseFloat($("p1-amount").value) || 0;
+      p2.amount = parseFloat($("p2-amount").value) || 0;
+      updateProfit(); validate();
+    });
+  });
+
+  function updateProfit() {
+    const total = p1.amount + p2.amount;
+    $("pp-total").textContent  = "$" + total.toFixed(2);
+    $("pp-house").textContent  = "$" + (total * HOUSE_CUT).toFixed(2);
+    $("pp-winner").textContent = "$" + (total - total * HOUSE_CUT).toFixed(2);
+  }
+
+  function validate() {
+    const amtsMatch   = p1.amount > 0 && p2.amount > 0 && p1.amount === p2.amount;
+    const amtsInRange = p1.amount >= MIN_BET && p1.amount <= MAX_BET && p2.amount >= MIN_BET && p2.amount <= MAX_BET;
+    const teamsOk     = p1.team && p2.team && p1.team !== p2.team;
+    const betsOk      = p1.betType && p2.betType;
+    const ok = amtsMatch && amtsInRange && teamsOk && betsOk;
+    $("vg-launch-btn").disabled = !ok;
+    let msg = "";
+    if (!teamsOk)       msg = p1.team === p2.team ? "Each player must pick a different team." : "Both players must select a team.";
+    else if (!betsOk)   msg = "Both players must select a bet type.";
+    else if (!amtsMatch) msg = "Both players must bet the same amount.";
+    else if (!amtsInRange) msg = `Bet must be $${MIN_BET}–$${MAX_BET}.`;
+    else msg = "Everything looks good — launch the match!";
+    $("vg-validation-msg").textContent = msg;
+  }
+
+  // ===== Launch =====
+
+  $("vg-launch-btn").addEventListener("click", function(){
+    if (this.disabled) return;
+    this.disabled = true;
+    // Fetch result immediately, then start playback
+    fetch("/virtual-game/play", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        home_team: p1.teamName, away_team: p2.teamName,
+        home_league: p1.league, away_league: p2.league,
+        home_logo: p1.logo, away_logo: p2.logo,
+        p1_bet_type: p1.betType, p1_amount: p1.amount,
+        p2_bet_type: p2.betType, p2_amount: p2.amount,
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); $("vg-launch-btn").disabled = false; return; }
+      gameResult = data;
+      startSimulation(data);
+    })
+    .catch(() => { alert("Server error. Please try again."); $("vg-launch-btn").disabled = false; });
+  });
+
+  // ===== Simulation Overlay =====
+
+  function startSimulation(r) {
+    // Populate overlay header
+    $("sim-home-logo").src = r.home_logo || "";
+    $("sim-away-logo").src = r.away_logo || "";
+    $("sim-home-name").textContent = r.home_team;
+    $("sim-away-name").textContent = r.away_team;
+    $("pitch-home-label").textContent = r.home_team.length > 8 ? r.home_team.substring(0,8)+"…" : r.home_team;
+    $("pitch-away-label").textContent = r.away_team.length > 8 ? r.away_team.substring(0,8)+"…" : r.away_team;
+    $("sim-score-home").textContent = "0";
+    $("sim-score-away").textContent = "0";
+    $("sim-minute-badge").textContent = "0'";
+
+    // Clear shots group and ticker
+    $("sim-shots-g").innerHTML = "";
+    const ticker = $("sim-ticker");
+    ticker.innerHTML = `<div class="ticker-event kickoff-event">
+      <span class="ticker-minute">0'</span>
+      <span class="ticker-text">⚽ &nbsp;<strong>Kick-off!</strong> — ${esc(r.home_team)} vs ${esc(r.away_team)}</span>
+    </div>`;
+
+    // Reset ball
+    const ball = $("sim-ball");
+    setBallPos(ball, 52.5, 34, true);
+
+    // Show overlay
+    $("vg-overlay").classList.add("active");
+
+    // Live scores to track goals
+    let liveHome = 0, liveAway = 0;
+    animTimers = [];
+
+    // Match clock
+    const clockStart = Date.now();
+    const clockInterval = setInterval(() => {
+      const elapsed = Date.now() - clockStart;
+      const minute = Math.min(90, Math.round((elapsed / PLAYBACK_MS) * 90));
+      $("sim-minute-badge").textContent = minute + "'";
+      if (elapsed >= PLAYBACK_MS) clearInterval(clockInterval);
+    }, 200);
+    animTimers.push(clockInterval);
+
+    // Ball wandering timer
+    const ballInterval = setInterval(() => wanderBall(ball), 1800);
+    animTimers.push(ballInterval);
+
+    // Schedule shots on pitch
+    (r.shots || []).forEach(shot => {
+      const delay = (shot.minute / 90) * PLAYBACK_MS - 600;
+      if (delay < 0) return;
+      const t = setTimeout(() => addShotMarker(shot), delay);
+      animTimers.push(t);
+    });
+
+    // Schedule events on ticker
+    (r.events || []).forEach(ev => {
+      const delay = (ev.minute / 90) * PLAYBACK_MS;
+      const t = setTimeout(() => {
+        fireEvent(ev, r, liveHome, liveAway);
+        // Update live score on goals
+        if (ev.type === "GOAL") {
+          if (ev.team === "home") { liveHome++; $("sim-score-home").textContent = liveHome; }
+          else { liveAway++; $("sim-score-away").textContent = liveAway; }
+          animateBallToGoal(ball, ev.team);
+          flashGoalArea(ev.team);
+        } else if (ev.type === "YELLOW_CARD") {
+          spawnCard("yellow");
+        } else if (ev.type === "RED_CARD") {
+          spawnCard("red");
+        }
+      }, delay);
+      animTimers.push(t);
+    });
+
+    // Halftime message
+    const htT = setTimeout(() => addTicker(45, "⏱", "Half-time", "kickoff-event"), PLAYBACK_MS * 0.5);
+    animTimers.push(htT);
+
+    // Final whistle + show result
+    const endT = setTimeout(() => {
+      clearInterval(clockInterval);
+      clearInterval(ballInterval);
+      $("sim-minute-badge").textContent = "FT";
+      addTicker(90, "🏁", `Full-time! ${r.home_team} ${r.home_score} – ${r.away_score} ${r.away_team}`, "kickoff-event");
+      setTimeout(() => {
+        $("vg-overlay").classList.remove("active");
+        showResult(r);
+        history.unshift(r);
+        if (history.length > 50) history.pop();
+        localStorage.setItem("vg_history", JSON.stringify(history));
+        renderHistory();
+      }, 1500);
+    }, PLAYBACK_MS);
+    animTimers.push(endT);
+  }
+
+  // Ball movement helpers
+  function setBallPos(ball, x, y, instant) {
+    if (instant) {
+      ball.setAttribute("cx", x); ball.setAttribute("cy", y);
+    } else {
+      ball.style.transition = "all 0.8s ease";
+      ball.setAttribute("cx", x); ball.setAttribute("cy", y);
+    }
+  }
+
+  function wanderBall(ball) {
+    // Random midfield movement
+    const x = 30 + Math.random() * 45;
+    const y = 10 + Math.random() * 48;
+    ball.style.transition = "all 1.6s ease";
+    ball.setAttribute("cx", x); ball.setAttribute("cy", y);
+  }
+
+  function animateBallToGoal(ball, team) {
+    const gx = team === "home" ? 104 : 1;
+    const gy = 29 + Math.random() * 10;
+    ball.style.transition = "all 0.6s ease";
+    ball.setAttribute("cx", gx); ball.setAttribute("cy", gy);
+    // Bounce back to center
+    setTimeout(() => {
+      ball.style.transition = "all 1.2s ease";
+      ball.setAttribute("cx", 52.5); ball.setAttribute("cy", 34);
+    }, 1000);
+  }
+
+  function flashGoalArea(team) {
+    const el = team === "home" ? $("goal-flash-right") : $("goal-flash-left");
+    el.style.transition = "none";
+    el.setAttribute("fill", "rgba(34,197,94,0.55)");
+    setTimeout(() => {
+      el.style.transition = "fill 1s ease";
+      el.setAttribute("fill", "rgba(34,197,94,0)");
+    }, 200);
+  }
+
+  function addShotMarker(shot) {
+    // Map x (0-105 pitch) and y (0-68 pitch) coordinates
+    const svgX = shot.x;
+    const svgY = shot.y * 0.68; // y comes as 0-100, map to 0-68
+    const color = shot.result === "goal" ? "#22c55e" : shot.result === "saved" ? "#facc15" : "#f87171";
+    const r = shot.result === "goal" ? 1.6 : 1.0;
+    const ns = "http://www.w3.org/2000/svg";
+    const circle = document.createElementNS(ns, "circle");
+    circle.setAttribute("cx", svgX); circle.setAttribute("cy", svgY);
+    circle.setAttribute("r", r); circle.setAttribute("fill", color);
+    circle.setAttribute("opacity", "0"); circle.setAttribute("stroke", "rgba(0,0,0,.3)");
+    circle.setAttribute("stroke-width", "0.3");
+    $("sim-shots-g").appendChild(circle);
+    // Fade in
+    requestAnimationFrame(() => {
+      circle.style.transition = "opacity 0.4s ease";
+      circle.setAttribute("opacity", shot.result === "goal" ? "1" : "0.75");
+    });
+    // Pulse on goal
+    if (shot.result === "goal") {
+      const ripple = document.createElementNS(ns, "circle");
+      ripple.setAttribute("cx", svgX); ripple.setAttribute("cy", svgY);
+      ripple.setAttribute("r", r); ripple.setAttribute("fill", "none");
+      ripple.setAttribute("stroke", color); ripple.setAttribute("stroke-width", "0.8");
+      ripple.setAttribute("opacity", "0.8");
+      $("sim-shots-g").appendChild(ripple);
+      let rippleR = r, rippleOpacity = 0.8;
+      const rippleInterval = setInterval(() => {
+        rippleR += 0.4; rippleOpacity -= 0.08;
+        ripple.setAttribute("r", rippleR); ripple.setAttribute("opacity", Math.max(0, rippleOpacity));
+        if (rippleOpacity <= 0) { clearInterval(rippleInterval); ripple.remove(); }
+      }, 50);
+    }
+  }
+
+  function spawnCard(color) {
+    const div = document.createElement("div");
+    div.className = "card-popup";
+    div.style.background = color === "yellow" ? "#eab308" : "#ef4444";
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 2000);
+  }
+
+  function fireEvent(ev, r, liveHome, liveAway) {
+    if (ev.type === "GOAL") {
+      const isHome = ev.team === "home";
+      const teamName = isHome ? r.home_team : r.away_team;
+      const assist = ev.assist ? ` <span class="text-muted">(assist: ${esc(ev.assist)})</span>` : "";
+      addTicker(ev.minute, "⚽",
+        `<strong class="${isHome ? 'text-primary' : ''}" style="${isHome ? '' : 'color:var(--dk-accent)'}">
+          GOAL! ${esc(ev.player)}</strong> — ${esc(teamName)}${assist}`,
+        "goal-event"
+      );
+    } else if (ev.type === "YELLOW_CARD") {
+      addTicker(ev.minute, "🟨",
+        `Yellow card — <strong>${esc(ev.player)}</strong> (${esc(ev.team === "home" ? r.home_team : r.away_team)})`,
+        "card-event-y"
+      );
+    } else if (ev.type === "RED_CARD") {
+      addTicker(ev.minute, "🟥",
+        `<strong class="text-danger">RED CARD</strong> — ${esc(ev.player)} sent off!`,
+        "card-event-r"
+      );
+    } else if (ev.type === "SUBSTITUTION") {
+      addTicker(ev.minute, "🔄",
+        `Sub: <strong>${esc(ev.player_in)}</strong> ↑ ${esc(ev.player_out)} ↓ (${esc(ev.team === "home" ? r.home_team : r.away_team)})`,
+        "sub-event"
+      );
+    }
+  }
+
+  function addTicker(minute, icon, html, cls) {
+    const ticker = $("sim-ticker");
+    const div = document.createElement("div");
+    div.className = `ticker-event ${cls}`;
+    div.innerHTML = `<span class="ticker-minute">${minute}'</span><span class="ticker-text">${icon}&nbsp; ${html}</span>`;
+    ticker.prepend(div);
+    ticker.scrollTop = 0;
+  }
+
+  // ===== Full Result Display =====
+
+  function showResult(r) {
+    const section = $("vg-result-section");
+    section.style.display = "";
+
+    const winnerBadgeClass = (r.winner === "house" || (r.player1_won && r.player2_won)) ? "house" : "";
+    const drawBadge = r.player1_won && r.player2_won ? "draw-badge" : "";
+    const p1Won = r.player1_won ? "✅ Won" : "❌ Lost";
+    const p2Won = r.player2_won ? "✅ Won" : "❌ Lost";
+
+    // Scorers HTML
+    const makeScorers = (scorers, team) => {
+      if (!scorers || scorers.length === 0) {
+        return `<div class="text-muted small py-2">No goals</div>`;
+      }
+      return scorers.map(sc => `
+        <div class="vg-scorer-row">
+          <span class="scorer-badge">${sc.minute}'</span>
+          <div>
+            <div class="scorer-name">${esc(sc.player)}</div>
+            ${sc.assist ? `<div class="scorer-assist"><i class="bi bi-arrow-right-short"></i> ${esc(sc.assist)}</div>` : ""}
+          </div>
+        </div>
+      `).join("");
+    };
+
+    // Events timeline
+    const eventsHTML = (r.events || []).map(ev => {
+      let icon = "⚪", cls = "", text = "";
+      const isHome = ev.team === "home";
+      const teamColor = isHome ? "var(--dk-primary)" : "var(--dk-accent)";
+      const dotStyle = `background:${teamColor}`;
+      if (ev.type === "GOAL") {
+        icon = "⚽"; cls = "text-success fw-semibold";
+        text = `GOAL — <strong>${esc(ev.player)}</strong>${ev.assist ? ` <span class="text-muted">(${esc(ev.assist)})</span>` : ""}`;
+        if (ev.detail) text += ` <span class="text-muted small">· ${esc(ev.detail)}</span>`;
+      } else if (ev.type === "YELLOW_CARD") {
+        icon = "🟨"; text = `Yellow card — ${esc(ev.player)}`;
+      } else if (ev.type === "RED_CARD") {
+        icon = "🟥"; cls = "text-danger fw-semibold"; text = `Red card — ${esc(ev.player)} (sent off)`;
+      } else if (ev.type === "SUBSTITUTION") {
+        icon = "🔄"; text = `${esc(ev.player_in)} ↑ &nbsp; ${esc(ev.player_out)} ↓`;
+      } else return "";
+      return `
+        <div class="timeline-item">
+          <span class="timeline-min">${ev.minute}'</span>
+          <span class="timeline-icon">${icon}</span>
+          <div class="timeline-team-dot" style="${dotStyle}"></div>
+          <span class="timeline-text ${cls}">${text}</span>
+        </div>
+      `;
+    }).join("");
+
+    // Stats bars
+    const st = r.stats || { home: {}, away: {} };
+    const sh = st.home || {}, sa = st.away || {};
+    const statRows = [
+      { label: "Possession", hv: sh.possession || 50, av: sa.possession || 50, pct: true },
+      { label: "Shots",          hv: sh.shots || 0,          av: sa.shots || 0 },
+      { label: "Shots on Target",hv: sh.shots_on_target || 0, av: sa.shots_on_target || 0 },
+      { label: "Corners",        hv: sh.corners || 0,        av: sa.corners || 0 },
+      { label: "Fouls",          hv: sh.fouls || 0,          av: sa.fouls || 0 },
+      { label: "Yellow Cards",   hv: sh.yellow_cards || 0,   av: sa.yellow_cards || 0 },
+    ].map(row => {
+      const total = (row.hv + row.av) || 1;
+      const hPct = Math.round((row.hv / total) * 100);
+      const aPct = 100 - hPct;
+      const display = row.pct ? `${row.hv}%` : row.hv;
+      const displayA = row.pct ? `${row.av}%` : row.av;
+      return `
+        <div class="stat-bar-wrap">
+          <div class="stat-bar-label">
+            <span style="color:var(--dk-primary)">${display}</span>
+            <span class="text-muted">${esc(row.label)}</span>
+            <span style="color:var(--dk-accent)">${displayA}</span>
+          </div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-home" style="width:${hPct}%"></div>
+            <div class="stat-bar-away" style="width:${aPct}%"></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Lineups
+    const makeLineup = (lineup) => {
+      if (!lineup || lineup.length === 0) return '<div class="text-muted small">No lineup data</div>';
+      return lineup.slice(0, 11).map((name, i) => {
+        const isGK = i === 0;
+        const isScorer = (r.home_scorers || []).concat(r.away_scorers || []).some(s => s.player === name);
+        return `
+          <div class="lineup-player ${isGK ? 'lineup-gk' : ''}">
+            <span class="lineup-num">${i + 1}</span>
+            <span class="lineup-name">${esc(name)}</span>
+            ${isGK ? '<span class="lineup-badge">GK</span>' : ''}
+            ${isScorer ? '<span class="ms-auto">⚽</span>' : ''}
+          </div>
+        `;
+      }).join("");
+    };
+
+    // Shot legend
+    const totalShots = (r.shots || []).length;
+    const goalsShots = (r.shots || []).filter(s => s.result === "goal").length;
+    const savedShots = (r.shots || []).filter(s => s.result === "saved").length;
+    const missedShots = (r.shots || []).filter(s => s.result === "missed").length;
+
+    // Build shot map SVG (mini static version for result)
+    const shotMapSVG = buildResultShotMap(r.shots || [], r.home_team, r.away_team);
+
+    section.innerHTML = `
+      <div class="vg-result-card">
+        <!-- Score header -->
+        <div class="vg-result-header text-center">
+          <div class="d-flex align-items-center justify-content-center gap-4 mb-3 flex-wrap">
+            <div class="text-center">
+              ${r.home_logo ? `<img src="${r.home_logo}" alt="${esc(r.home_team)}" style="width:56px;height:56px;object-fit:contain;margin-bottom:.4rem">` : '<i class="bi bi-shield-fill fs-2 d-block mb-1"></i>'}
+              <div class="fw-bold">${esc(r.home_team)}</div>
+              <div class="opacity-75 small">${esc(r.home_league)}</div>
+            </div>
+            <div>
+              <div style="font-family:'Space Grotesk';font-size:3.5rem;font-weight:800;letter-spacing:-2px;line-height:1">
+                ${r.home_score} – ${r.away_score}
+              </div>
+              <div class="opacity-60 small mt-1">Full Time</div>
+            </div>
+            <div class="text-center">
+              ${r.away_logo ? `<img src="${r.away_logo}" alt="${esc(r.away_team)}" style="width:56px;height:56px;object-fit:contain;margin-bottom:.4rem">` : '<i class="bi bi-shield-fill fs-2 d-block mb-1"></i>'}
+              <div class="fw-bold">${esc(r.away_team)}</div>
+              <div class="opacity-75 small">${esc(r.away_league)}</div>
+            </div>
+          </div>
+          <div class="vg-winner-badge ${winnerBadgeClass} ${drawBadge}">${r.winner_label}</div>
+        </div>
+
+        <div class="vg-result-body">
+
+          <!-- Scorers -->
+          <div class="vg-section-title mb-2">⚽ Goal Scorers</div>
+          <div class="vg-scorers-grid mb-3">
+            <div class="vg-scorer-col">
+              <div class="small fw-bold mb-2" style="color:var(--dk-primary)">${esc(r.home_team)}</div>
+              ${makeScorers(r.home_scorers)}
+            </div>
+            <div class="vg-scorer-col">
+              <div class="small fw-bold mb-2" style="color:var(--dk-accent)">${esc(r.away_team)}</div>
+              ${makeScorers(r.away_scorers)}
+            </div>
+          </div>
+
+          <!-- Shot Map -->
+          <div class="vg-section-title mb-2">🎯 Shot Map</div>
+          <div class="mb-3">${shotMapSVG}</div>
+          <div class="d-flex gap-3 flex-wrap mb-3" style="font-size:.78rem">
+            <span><svg width="10" height="10"><circle cx="5" cy="5" r="4.5" fill="#22c55e"/></svg> Goal (${goalsShots})</span>
+            <span><svg width="10" height="10"><circle cx="5" cy="5" r="4.5" fill="#facc15"/></svg> Saved (${savedShots})</span>
+            <span><svg width="10" height="10"><circle cx="5" cy="5" r="4.5" fill="#f87171"/></svg> Off target (${missedShots})</span>
+            <span class="ms-auto text-muted">Total shots: ${totalShots}</span>
+          </div>
+
+          <!-- Stats -->
+          <div class="vg-section-title mb-2">📊 Match Statistics</div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-2" style="font-size:.78rem;font-weight:600">
+              <span style="color:var(--dk-primary)">${esc(r.home_team)}</span>
+              <span style="color:var(--dk-accent)">${esc(r.away_team)}</span>
+            </div>
+            ${statRows}
+          </div>
+
+          <!-- Events timeline -->
+          <div class="vg-section-title mb-2">📋 Match Events</div>
+          <div class="vg-timeline mb-3" style="max-height:260px;overflow-y:auto">
+            ${eventsHTML || '<div class="text-muted small">No events</div>'}
+          </div>
+
+          <!-- Lineups -->
+          <div class="vg-section-title mb-2">👥 Line-ups (Starting XI)</div>
+          <div class="vg-lineups mb-3">
+            <div class="lineup-col">
+              <div class="small fw-bold mb-2" style="color:var(--dk-primary)">${esc(r.home_team)}</div>
+              ${makeLineup(r.home_lineup)}
+            </div>
+            <div class="lineup-col">
+              <div class="small fw-bold mb-2" style="color:var(--dk-accent)">${esc(r.away_team)}</div>
+              ${makeLineup(r.away_lineup)}
+            </div>
+          </div>
+
+          <!-- Bet outcomes -->
+          <div class="vg-section-title mb-2">🎰 Bet Outcomes</div>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="p-3 rounded-3" style="background:rgba(47,93,255,.06);border:1px solid rgba(47,93,255,.12)">
+                <div class="small text-muted mb-1">Player 1 · Home — ${esc(r.home_team)}</div>
+                <div class="fw-bold">${esc(r.player1_bet_label)}</div>
+                <div class="d-flex justify-content-between mt-1">
+                  <span class="small">Bet: <strong>$${r.player1_bet_amount}</strong></span>
+                  <span class="small fw-bold ${r.player1_won ? 'text-success':'text-danger'}">${p1Won}</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="p-3 rounded-3" style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.12)">
+                <div class="small text-muted mb-1">Player 2 · Away — ${esc(r.away_team)}</div>
+                <div class="fw-bold">${esc(r.player2_bet_label)}</div>
+                <div class="d-flex justify-content-between mt-1">
+                  <span class="small">Bet: <strong>$${r.player2_bet_amount}</strong></span>
+                  <span class="small fw-bold ${r.player2_won ? 'text-success':'text-danger'}">${p2Won}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payout -->
+          <div class="row g-2 mb-3">
+            <div class="col-4"><div class="vg-payout-row"><span class="text-muted">Total pot</span><strong>$${r.total_pot}</strong></div></div>
+            <div class="col-4"><div class="vg-payout-row"><span class="text-muted">House (${r.house_cut_pct}%)</span><strong class="text-danger">$${r.house_profit}</strong></div></div>
+            <div class="col-4"><div class="vg-payout-row"><span class="text-muted">Winner gets</span><strong class="text-success">$${r.winner_profit}</strong></div></div>
+          </div>
+
+          <div class="text-center">
+            <button class="btn btn-primary rounded-pill px-4" onclick="location.reload()">
+              <i class="bi bi-plus-circle me-1"></i>Play Again
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Trigger stat bar animations after render
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".stat-bar-home, .stat-bar-away").forEach(el => {
+        const w = el.style.width; el.style.width = "0"; 
+        requestAnimationFrame(() => { el.style.width = w; });
+      });
+    });
+    $("vg-launch-btn").disabled = false;
+  }
+
+  // Mini shot map SVG for result card
+  function buildResultShotMap(shots, homeTeam, awayTeam) {
+    const W = 400, H = 130;
+    // Map shot x (0-105) to SVG x, y (0-68) to SVG y
+    const toSvgX = x => (x / 105) * W;
+    const toSvgY = y => (y / 68) * H;
+
+    const dotsHTML = shots.map(s => {
+      const color = s.result === "goal" ? "#22c55e" : s.result === "saved" ? "#facc15" : "#f87171";
+      const r = s.result === "goal" ? 5 : 3.5;
+      const opacity = s.result === "goal" ? 1 : 0.75;
+      const svgX = toSvgX(s.x);
+      const svgY = toSvgY(s.y * 0.68);
+      return `<circle cx="${svgX.toFixed(1)}" cy="${svgY.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}" stroke="rgba(0,0,0,.2)" stroke-width="0.8"/>`;
+    }).join("");
+
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:500px;display:block;margin:0 auto;border-radius:.5rem;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${W}" height="${H}" fill="#2d7a3a"/>
+      <rect x="1" y="1" width="${W-2}" height="${H-2}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="0.8"/>
+      <line x1="${W/2}" y1="1" x2="${W/2}" y2="${H-1}" stroke="rgba(255,255,255,.4)" stroke-width="0.8"/>
+      <!-- Left penalty area -->
+      <rect x="1" y="${H*0.2}" width="${W*0.16}" height="${H*0.6}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="0.8"/>
+      <!-- Right penalty area -->
+      <rect x="${W*0.84}" y="${H*0.2}" width="${W*0.16}" height="${H*0.6}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="0.8"/>
+      <!-- Left goal -->
+      <rect x="0" y="${H*0.37}" width="${W*0.025}" height="${H*0.26}" fill="rgba(255,255,255,.2)" stroke="rgba(255,255,255,.6)" stroke-width="0.8"/>
+      <!-- Right goal -->
+      <rect x="${W*0.975}" y="${H*0.37}" width="${W*0.025}" height="${H*0.26}" fill="rgba(255,255,255,.2)" stroke="rgba(255,255,255,.6)" stroke-width="0.8"/>
+      <!-- Center circle (small) -->
+      <circle cx="${W/2}" cy="${H/2}" r="${H*0.18}" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="0.8"/>
+      <!-- Team labels -->
+      <text x="${W*0.08}" y="10" fill="rgba(255,255,255,.6)" font-size="7" font-family="Inter,sans-serif" text-anchor="middle">${esc(homeTeam).substring(0,10)}</text>
+      <text x="${W*0.92}" y="10" fill="rgba(255,255,255,.6)" font-size="7" font-family="Inter,sans-serif" text-anchor="middle">${esc(awayTeam).substring(0,10)}</text>
+      ${dotsHTML}
+    </svg>`;
+  }
+
+  // ===== History =====
+
+  function renderHistory() {
+    const container = $("vg-history-container");
+    if (!history.length) {
+      container.innerHTML = '<p class="text-muted small mb-0">No games played yet. Launch your first match above!</p>';
+      return;
+    }
+    const rows = history.slice(0, 30).map(r => {
+      const winnerLabel = r.winner === "player1" ? '<span class="badge bg-primary">P1</span>' :
+                          r.winner === "player2" ? '<span class="badge" style="background:var(--dk-accent)">P2</span>' :
+                          '<span class="badge bg-danger">House</span>';
+      const homeImg = r.home_logo ? `<img src="${r.home_logo}" width="18" height="18" style="object-fit:contain">` : "";
+      const awayImg = r.away_logo ? `<img src="${r.away_logo}" width="18" height="18" style="object-fit:contain">` : "";
+      return `<tr>
+        <td class="text-nowrap">${homeImg} ${esc(r.home_team)} <span class="text-muted">vs</span> ${awayImg} ${esc(r.away_team)}</td>
+        <td class="text-center fw-bold">${r.home_score}–${r.away_score}</td>
+        <td>${esc(r.player1_bet_label)}</td>
+        <td>${esc(r.player2_bet_label)}</td>
+        <td class="text-center">$${r.total_pot}</td>
+        <td class="text-center">${winnerLabel}</td>
+        <td class="text-success text-center">$${r.winner_profit}</td>
+        <td class="text-muted small">${r.played_at || ''}</td>
+      </tr>`;
+    }).join("");
+    container.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-sm vg-history-table align-middle">
+          <thead><tr>
+            <th>Match</th><th class="text-center">Score</th>
+            <th>P1 Bet</th><th>P2 Bet</th>
+            <th class="text-center">Pot</th><th class="text-center">Winner</th>
+            <th class="text-center">Payout</th><th>Time</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  $("vg-clear-history").addEventListener("click", function(){
+    if (!confirm("Clear all game history?")) return;
+    history = []; localStorage.removeItem("vg_history"); renderHistory();
+  });
+
+  // ===== Utilities =====
+  function esc(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // Init
+  renderHistory();
+  validate();
+})();
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

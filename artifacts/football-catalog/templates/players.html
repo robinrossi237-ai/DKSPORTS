@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Players · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="players-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+        <li class="breadcrumb-item active">Players</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center flex-wrap gap-3">
+      <div class="players-hero-emblem">
+        {% if league_meta.emblem %}<img src="{{ league_meta.emblem }}" alt="" />{% endif %}
+      </div>
+      <div>
+        <div class="text-muted small text-uppercase">{{ league_meta.country or 'League' }}</div>
+        <h1 class="display-6 fw-bold mb-1">{{ league_meta.name or 'Players' }}</h1>
+        <p class="text-muted mb-0">Browse the rosters of the top European leagues. Filter by position, club, or name.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  <form action="{{ url_for('players_page') }}" method="get" class="players-filter-bar mb-4">
+    <div class="row g-2 g-md-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1"><i class="bi bi-trophy me-1"></i>League</label>
+        <select name="league" class="form-select dk-select-pill" onchange="this.form.submit()">
+          {% for l in leagues %}
+          <option value="{{ l.code }}" {% if l.code == active_league %}selected{% endif %}>{{ l.name }} · {{ l.country }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-muted mb-1"><i class="bi bi-funnel me-1"></i>Position</label>
+        <select name="position" class="form-select dk-select-pill" onchange="this.form.submit()">
+          {% for p in positions %}
+          <option value="{{ p.key }}" {% if p.key == active_position %}selected{% endif %}>{{ p.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small text-muted mb-1"><i class="bi bi-search me-1"></i>Search players or clubs</label>
+        <div class="dk-search-wrap" data-autocomplete>
+          <div class="gg-search gg-search-pill w-100">
+            <div class="input-group">
+              <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+              <input class="form-control border-start-0" type="search" name="q" value="{{ query }}" placeholder="e.g. Haaland, Real Madrid…" autocomplete="off" data-autocomplete-input />
+              <button class="btn btn-primary" type="submit">Filter</button>
+            </div>
+          </div>
+          <div class="dk-search-suggest" data-autocomplete-panel hidden></div>
+        </div>
+      </div>
+    </div>
+    <div class="text-muted small mt-2">
+      Showing <strong>{{ shown }}</strong> of <strong>{{ total }}</strong> players in {{ league_meta.name }}.
+      {% if active_position != 'ALL' %}<span class="ms-2 dk-pill-badge">{{ active_position }}</span>{% endif %}
+      {% if query %}<span class="ms-2 dk-pill-badge">"{{ query }}"</span>{% endif %}
+    </div>
+  </form>
+
+  {% if error %}
+    <div class="alert alert-warning"><i class="bi bi-exclamation-circle me-2"></i>{{ error }}</div>
+  {% endif %}
+
+  {% if players %}
+  <div class="row g-3" id="playersGrid">
+    {% for p in players %}
+    <div class="col-6 col-md-4 col-lg-3"
+         data-position="{{ p._pos }}"
+         data-name="{{ (p.name or '')|lower }} {{ (p.team.name or '')|lower }}">
+      <div class="player-card{% if p._photo or p._photo_local %} has-photo{% endif %}">
+        <div class="player-position-tag">{{ p._pos }}</div>
+        <div class="player-avatar">
+          {% if p._photo or p._photo_local %}
+            <img src="{{ img_url(p._photo_local, p._photo) }}" alt="{{ p.name }}" loading="lazy"
+                 onerror="this.style.display='none'; this.parentNode.querySelector('.player-avatar-fallback').style.display='flex'" />
+            <span class="player-avatar-fallback" style="display:none"><i class="bi bi-person-fill"></i></span>
+          {% else %}
+            <span class="player-avatar-fallback"><i class="bi bi-person-fill"></i></span>
+          {% endif %}
+        </div>
+        <div class="text-center mt-2">
+          <div class="fw-semibold text-truncate">{{ p.name }}</div>
+          <a href="{{ url_for('team_detail', team_id=p.team.id) }}" class="player-team-chip" title="{{ p.team.name }}">
+            {% if p.team.crest %}<img src="{{ p.team.crest }}" alt="" />{% endif %}
+            <span class="text-truncate">{{ p.team.shortName or p.team.name }}</span>
+          </a>
+          <div class="text-muted small mt-1">
+            {{ p.position or '—' }}
+            {% if p.dateOfBirth %} · {{ p.dateOfBirth|years_old }}y{% endif %}
+          </div>
+          {% if p.nationality %}
+          <div class="text-muted small">{{ p.nationality }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="alert alert-secondary"><i class="bi bi-info-circle me-2"></i>No players match these filters.</div>
+  {% endif %}
+</section>
+{% endblock %}

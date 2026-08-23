@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ competition.name }} · Matchday {{ matchday }} · {{ site_name }}{% endblock %}
+{% block og_title %}{{ competition.name }} — Matchday {{ matchday }} Digest{% endblock %}
+{% block og_desc %}All results and scorers from Matchday {{ matchday }} of {{ competition.name }}.{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+      <li class="breadcrumb-item"><a href="{{ url_for('competition_detail', code=competition.code) }}">{{ competition.name }}</a></li>
+      <li class="breadcrumb-item active">Matchday {{ matchday }}</li>
+    </ol>
+  </nav>
+
+  {# ---- Header ---- #}
+  <div class="dk-md-header">
+    <div class="dk-md-comp">
+      {% if competition.emblem %}<img src="{{ competition.emblem }}" alt="" class="dk-md-emblem" onerror="this.style.display='none'" />{% endif %}
+      <div>
+        <div class="text-muted small text-uppercase">{{ competition.area.name if competition.area }}</div>
+        <h1 class="h3 fw-bold mb-0">{{ competition.name }}</h1>
+      </div>
+    </div>
+    <div class="dk-md-nav">
+      {% if matchday > 1 %}
+      <a href="{{ url_for('matchday_digest', code=competition.code, md=matchday-1) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-chevron-left"></i> MD {{ matchday - 1 }}
+      </a>
+      {% endif %}
+      <span class="dk-md-badge">Matchday {{ matchday }}</span>
+      {% if current_matchday %}
+      <span class="badge bg-primary-subtle text-primary">Current MD {{ current_matchday }}</span>
+      {% endif %}
+      {% if matchday < max_matchday %}
+      <a href="{{ url_for('matchday_digest', code=competition.code, md=matchday+1) }}" class="btn btn-outline-secondary btn-sm">
+        MD {{ matchday + 1 }} <i class="bi bi-chevron-right"></i>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---- Stats bar ---- #}
+  {% set finished = matches|selectattr('status','in',['FINISHED','AWARDED'])|list %}
+  {% set live = matches|selectattr('status','in',['IN_PLAY','PAUSED'])|list %}
+  <div class="dk-md-stats-bar">
+    <div class="dk-md-stat"><span class="dk-md-stat-val">{{ matches|length }}</span><span class="dk-md-stat-lbl">Matches</span></div>
+    <div class="dk-md-stat"><span class="dk-md-stat-val">{{ finished|length }}</span><span class="dk-md-stat-lbl">Played</span></div>
+    {% if live %}<div class="dk-md-stat"><span class="dk-md-stat-val text-danger">{{ live|length }}</span><span class="dk-md-stat-lbl">Live</span></div>{% endif %}
+    <div class="dk-md-stat"><span class="dk-md-stat-val">{{ total_goals }}</span><span class="dk-md-stat-lbl">Goals</span></div>
+    {% set avg = (total_goals / finished|length)|round(1) if finished|length > 0 else '—' %}
+    <div class="dk-md-stat"><span class="dk-md-stat-val">{{ avg }}</span><span class="dk-md-stat-lbl">Avg goals</span></div>
+  </div>
+
+  {# ---- Match cards ---- #}
+  {% if matches %}
+  <div class="dk-md-grid">
+    {% for m in matches %}
+    {% set status = (m.status or '')|upper %}
+    {% set is_finished = status in ('FINISHED', 'AWARDED') %}
+    {% set is_live = status in ('IN_PLAY', 'PAUSED') %}
+    {% set score_h = m.score.fullTime.home if m.score and m.score.fullTime else none %}
+    {% set score_a = m.score.fullTime.away if m.score and m.score.fullTime else none %}
+    <a href="{{ url_for('match_detail', match_id=m.id) }}" class="dk-md-card text-decoration-none">
+      {% if is_live %}<span class="dk-md-live-pill"><span class="dk-live-dot"></span>LIVE</span>{% endif %}
+      <div class="dk-md-card-time text-muted small">{{ m.utcDate|fmt_datetime }}</div>
+
+      <div class="dk-md-card-body">
+        {# Home team #}
+        <div class="dk-md-team home">
+          <img src="{{ m.homeTeam.crest }}" alt="" onerror="this.style.display='none'" />
+          <span class="dk-md-team-name {% if is_finished and score_h is not none and score_h > score_a %}fw-bold text-body{% else %}text-muted{% endif %}">
+            {{ m.homeTeam.shortName or m.homeTeam.name }}
+          </span>
+        </div>
+
+        {# Score or vs #}
+        <div class="dk-md-score">
+          {% if is_finished and score_h is not none %}
+            <span class="dk-md-score-num {% if score_h > score_a %}text-body{% else %}text-muted{% endif %}">{{ score_h }}</span>
+            <span class="dk-md-score-sep">–</span>
+            <span class="dk-md-score-num {% if score_a > score_h %}text-body{% else %}text-muted{% endif %}">{{ score_a }}</span>
+          {% elif is_live and score_h is not none %}
+            <span class="dk-md-score-num fw-bold">{{ score_h }}</span>
+            <span class="dk-md-score-sep text-danger">–</span>
+            <span class="dk-md-score-num fw-bold">{{ score_a }}</span>
+          {% else %}
+            <span class="dk-md-score-vs">{{ m.utcDate|fmt_time }}</span>
+          {% endif %}
+        </div>
+
+        {# Away team #}
+        <div class="dk-md-team away">
+          <span class="dk-md-team-name {% if is_finished and score_a is not none and score_a > score_h %}fw-bold text-body{% else %}text-muted{% endif %}">
+            {{ m.awayTeam.shortName or m.awayTeam.name }}
+          </span>
+          <img src="{{ m.awayTeam.crest }}" alt="" onerror="this.style.display='none'" />
+        </div>
+      </div>
+
+      {# Scorers (if finished and goals available) #}
+      {% if is_finished and m.goals %}
+      <div class="dk-md-scorers">
+        {% set home_goals = m.goals|selectattr('team','defined')|selectattr('team.id','equalto',m.homeTeam.id)|list %}
+        {% set away_goals = m.goals|selectattr('team','defined')|selectattr('team.id','equalto',m.awayTeam.id)|list %}
+        {% if home_goals or away_goals %}
+        <div class="dk-md-scorers-row">
+          <div class="dk-md-scorer-side home">
+            {% for g in home_goals %}
+              <span>{{ g.scorer.name.split()[-1] if g.scorer else '?' }} <span class="text-muted">{{ g.minute }}'</span>{% if g.type == 'OWN_GOAL' %} <span class="badge bg-danger-subtle text-danger">OG</span>{% elif g.type == 'PENALTY' %} <span class="badge bg-warning-subtle text-warning">P</span>{% endif %}</span>
+            {% endfor %}
+          </div>
+          <div class="dk-md-scorer-side away">
+            {% for g in away_goals %}
+              <span>{{ g.scorer.name.split()[-1] if g.scorer else '?' }} <span class="text-muted">{{ g.minute }}'</span>{% if g.type == 'OWN_GOAL' %} <span class="badge bg-danger-subtle text-danger">OG</span>{% elif g.type == 'PENALTY' %} <span class="badge bg-warning-subtle text-warning">P</span>{% endif %}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {# HT score #}
+      {% if is_finished and m.score and m.score.halfTime and m.score.halfTime.home is not none %}
+      <div class="dk-md-ht text-muted small text-center">
+        HT: {{ m.score.halfTime.home }}–{{ m.score.halfTime.away }}
+      </div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="alert alert-secondary mt-4">No matches found for Matchday {{ matchday }}. The season may not have reached this matchday yet.</div>
+  {% endif %}
+
+  {# ---- Matchday navigator (all matchdays) ---- #}
+  {% if max_matchday > 1 %}
+  <div class="dk-md-all-nav mt-5">
+    <div class="text-muted small mb-2">Jump to matchday:</div>
+    <div class="dk-md-all-pills">
+      {% for i in range(1, max_matchday + 1) %}
+      <a href="{{ url_for('matchday_digest', code=competition.code, md=i) }}"
+         class="dk-md-pill {% if i == matchday %}active{% endif %}">{{ i }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

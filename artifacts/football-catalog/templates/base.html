@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ site_name }} · {{ tagline }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_desc %}{{ tagline }} — leagues, teams, players, standings, top scorers, fixtures and live odds.{% endblock %}" />
+
+  {# Open Graph / Twitter share preview — child templates override these blocks #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{ site_name }}" />
+  <meta property="og:title" content="{% block og_title %}{{ site_name }} · {{ tagline }}{% endblock %}" />
+  <meta property="og:description" content="{% block og_desc %}{{ tagline }}{% endblock %}" />
+  <meta property="og:image" content="{% block og_image %}{{ request.url_root.rstrip('/') }}{{ url_for('static', filename='img/og-default.svg') }}{% endblock %}" />
+  <meta property="og:url" content="{{ request.url }}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ self.og_title() }}" />
+  <meta name="twitter:description" content="{{ self.og_desc() }}" />
+  <meta name="twitter:image" content="{{ self.og_image() }}" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232f5dff'/%3E%3Cstop offset='100%25' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Ctext x='32' y='42' font-family='Space Grotesk, Inter, sans-serif' font-size='28' font-weight='800' fill='white' text-anchor='middle'%3EDK%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fonts/google-fonts.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  {% block extra_head %}{% endblock %}
+  <script>
+    // Apply theme before paint to avoid flash
+    (function(){
+      try {
+        var t = localStorage.getItem('dk-theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', t);
+        if (t === 'dark') document.documentElement.classList.add('dk-dark');
+      } catch(e){}
+    })();
+  </script>
+</head>
+<body
+  class="{% if page_theme and page_theme.code != 'DEFAULT' %}dk-page-themed{% endif %}"
+  data-page-theme-code="{{ (page_theme.code if page_theme else 'default')|lower }}"
+  data-page-theme-name="{{ page_theme.label if page_theme else 'DKSPORTS' }}"
+  style="--league-primary: {{ page_theme.primary if page_theme else '#2f5dff' }}; --league-accent: {{ page_theme.accent if page_theme else '#8b5cf6' }}; --league-surface: {{ page_theme.surface if page_theme else '#eef4ff' }}; --league-soft: {{ page_theme.soft if page_theme else 'rgba(47, 93, 255, 0.10)' }}; --league-glow: {{ page_theme.glow if page_theme else 'rgba(47, 93, 255, 0.22)' }}; --league-contrast: {{ page_theme.contrast if page_theme else '#ffffff' }};"
+>
+  <nav class="navbar sticky-top gg-navbar">
+    <div class="container d-flex align-items-center gap-2">
+
+      <a class="navbar-brand d-flex align-items-center gap-2 flex-shrink-0 me-2" href="{{ url_for('home') }}">
+        <span class="brand-logo">
+          <svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true">
+            <defs>
+              <linearGradient id="dkLogoNav" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#2f5dff"/>
+                <stop offset="100%" stop-color="#8b5cf6"/>
+              </linearGradient>
+            </defs>
+            <rect width="64" height="64" rx="14" fill="url(#dkLogoNav)"/>
+            <text x="32" y="42" font-family="Space Grotesk, Inter, sans-serif" font-size="26" font-weight="800" fill="white" text-anchor="middle">DK</text>
+          </svg>
+        </span>
+        <span class="brand-text d-none d-sm-inline">
+          <span class="fw-bold">DK</span><span class="grad-text fw-bold">SPORTS</span>
+        </span>
+        {% if offline_mode %}
+        <span class="badge text-bg-warning rounded-pill ms-1 d-none d-md-inline-flex align-items-center gap-1">
+          <i class="bi bi-plug-fill"></i><span>Offline</span>
+        </span>
+        {% endif %}
+      </a>
+
+      <div class="dk-search-wrap flex-grow-1" data-autocomplete>
+        <form class="d-flex gg-search" role="search" action="{{ url_for('search') }}" method="get" data-save-search-form>
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+            <input class="form-control border-start-0" type="search" name="q" placeholder="Search teams, leagues, players…" aria-label="Search" value="{{ request.args.get('q', '') }}" autocomplete="off" data-autocomplete-input />
+            <button class="btn btn-primary" type="submit">Go</button>
+          </div>
+        </form>
+        <div class="dk-search-suggest" data-autocomplete-panel hidden></div>
+      </div>
+
+      <div class="d-flex align-items-center gap-1 flex-shrink-0">
+
+        <button type="button" class="btn btn-sm btn-icon dk-icon-btn dk-favs-btn" id="dkFavsBtn" aria-label="Favorites" title="Favorites" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          <i class="bi bi-star-fill"></i>
+          <span class="dk-fav-count d-none" data-fav-count>0</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end dk-favs-menu" id="dkFavsMenu" aria-labelledby="dkFavsBtn">
+          <li class="dk-favs-empty text-muted small px-3 py-2">No favorites yet. Pin a team, league, or comparison to reopen it quickly.</li>
+        </ul>
+
+        <button type="button" class="btn btn-sm btn-icon dk-icon-btn dk-theme-btn" id="dkThemeBtn" aria-label="Toggle theme" title="Toggle dark / light">
+          <i class="bi bi-moon-stars-fill dk-theme-icon-dark"></i>
+          <i class="bi bi-sun-fill dk-theme-icon-light"></i>
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-sm btn-icon dk-icon-btn dk-nav-dots-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" aria-label="Navigation menu" title="Menu">
+            <i class="bi bi-three-dots-vertical"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end dk-nav-menu">
+
+            <li><h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Navigate</h6></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}"><i class="bi bi-house-door me-2"></i>Home</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'competitions_page' %}active{% endif %}" href="{{ url_for('competitions_page') }}"><i class="bi bi-trophy me-2"></i>Competitions</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'fixtures_page' %}active{% endif %}" href="{{ url_for('fixtures_page') }}"><i class="bi bi-calendar2-week me-2"></i>Fixtures</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'players_page' %}active{% endif %}" href="{{ url_for('players_page') }}"><i class="bi bi-person-arms-up me-2"></i>Players</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'news_page' %}active{% endif %}" href="{{ url_for('news_page') }}"><i class="bi bi-newspaper me-2"></i>News</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'about' %}active{% endif %}" href="{{ url_for('about') }}"><i class="bi bi-info-circle me-2"></i>About</a></li>
+
+            <li><hr class="dropdown-divider my-1"></li>
+            <li><h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Compare</h6></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'compare_teams_page' %}active{% endif %}" href="{{ url_for('compare_teams_page') }}"><i class="bi bi-shield-shaded me-2"></i>Teams</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'compare_players_page' %}active{% endif %}" href="{{ url_for('compare_players_page') }}"><i class="bi bi-person-badge me-2"></i>Players</a></li>
+
+            <li><hr class="dropdown-divider my-1"></li>
+            <li><h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Top Leagues</h6></li>
+            {% for c in free_tier_competitions[:8] %}
+            <li><a class="dropdown-item" href="{{ url_for('competition_detail', code=c.code) }}"><i class="bi bi-stars me-2 text-warning"></i>{{ c.name }} <span class="text-muted small">· {{ c.country }}</span></a></li>
+            {% endfor %}
+
+            <li><hr class="dropdown-divider my-1"></li>
+            <li><h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Games &amp; Tools</h6></li>
+            <li><a class="dropdown-item {% if request.endpoint in ('virtual_games_catalog','virtual_game','virtual_league_session') %}active{% endif %}" href="{{ url_for('virtual_games_catalog') }}"><i class="bi bi-controller me-2"></i>Virtual Games</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'scan_page' %}active{% endif %}" href="{{ url_for('scan_page') }}"><i class="bi bi-radar me-2"></i>Data Scan</a></li>
+            <li><a class="dropdown-item {% if request.endpoint == 'settings_page' %}active{% endif %}" href="{{ url_for('settings_page') }}"><i class="bi bi-gear me-2"></i>Settings</a></li>
+
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </nav>
+
+  <div class="dk-sync-ribbon{% if offline_mode %} is-offline{% endif %}" data-sync-ribbon data-offline="{{ 1 if offline_mode else 0 }}">
+    <div class="container d-flex align-items-center gap-2 flex-wrap">
+      <span class="dk-sync-pulse" aria-hidden="true"></span>
+      <span class="dk-sync-ribbon-title" data-sync-ribbon-title>
+        {% if offline_mode %}Offline mode active{% else %}Sync monitor ready{% endif %}
+      </span>
+      <span class="dk-sync-ribbon-meta" data-sync-ribbon-meta>
+        {% if offline_mode %}
+          Serving your cached football catalog.
+        {% else %}
+          Checking provider and cache freshness in the background.
+        {% endif %}
+      </span>
+      <a href="{{ url_for('settings_page') }}" class="dk-sync-ribbon-link ms-auto">Open settings</a>
+    </div>
+  </div>
+
+  <section
+    class="dk-startup-gate"
+    data-startup-sync-dialog
+    data-startup-sync-count="{{ startup_sync_count }}"
+    hidden
+    aria-hidden="true"
+  >
+    <div class="dk-startup-gate__panel" data-startup-sync-panel>
+      <div class="dk-startup-gate__hero">
+        <img
+          src="{{ url_for('static', filename='img/og-default.svg') }}"
+          alt="DKSPORTS startup preview"
+          class="dk-startup-gate__art"
+        />
+        <div class="dk-startup-gate__copy">
+          <span class="dk-startup-gate__eyebrow">Offline-first football catalog</span>
+          <h2 class="dk-startup-gate__title">How should DKSPORTS start this session?</h2>
+          <p class="dk-startup-gate__text">
+            We can sync all tracked leagues from the API now and store the previous matchweeks,
+            scores, standings, scorers, teams, and fixtures in PostgreSQL, or open instantly
+            with your local offline archive.
+          </p>
+          <div class="dk-startup-gate__meta">
+            <span class="dk-startup-gate__meta-pill"><strong data-startup-competition-count>{{ startup_sync_count }}</strong> tracked leagues</span>
+            <span class="dk-startup-gate__meta-pill"><strong data-startup-cached-matches>0</strong> cached matches</span>
+            <span class="dk-startup-gate__meta-pill" data-startup-mode-label>{% if offline_mode %}Offline mode{% else %}Online ready{% endif %}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dk-startup-gate__status" data-startup-sync-status>
+        <div class="dk-startup-gate__status-head">
+          <div>
+            <p class="dk-startup-gate__status-title" data-startup-sync-status-title>Choose your launch mode</p>
+            <p class="dk-startup-gate__status-copy" data-startup-sync-status-copy>
+              Start with a fresh API sync or continue from the data already cached on this machine.
+            </p>
+          </div>
+          <span class="dk-startup-gate__status-chip" data-startup-sync-progress-label>0 / {{ startup_sync_count }} leagues</span>
+        </div>
+        <div class="dk-startup-gate__track" aria-hidden="true">
+          <div class="dk-startup-gate__bar" data-startup-sync-bar></div>
+        </div>
+        <div class="dk-startup-gate__status-foot">
+          <span data-startup-sync-errors>No sync issues detected yet.</span>
+          <span>You can rerun this from Settings at any time.</span>
+        </div>
+        <div class="dk-startup-gate__log" data-startup-sync-log hidden></div>
+      </div>
+
+      <div class="dk-startup-gate__actions">
+        <button type="button" class="btn btn-primary btn-lg" data-startup-sync-start>
+          <i class="bi bi-cloud-arrow-down-fill me-2"></i>Sync API data now
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-lg" data-startup-sync-continue>
+          Continue locally
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <main class="page-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block footer %}
+  <footer class="gg-footer mt-5">
+    <div class="container py-4">
+      <div class="row g-4 align-items-center">
+        <div class="col-md-6">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="brand-logo">
+              <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
+                <defs><linearGradient id="dkLogoFt" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2f5dff"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                <rect width="64" height="64" rx="14" fill="url(#dkLogoFt)"/>
+                <text x="32" y="44" font-family="Space Grotesk, Inter, sans-serif" font-size="28" font-weight="800" fill="white" text-anchor="middle">DK</text>
+              </svg>
+            </span>
+            <strong>DKSPORTS</strong>
+          </div>
+          <p class="text-muted small mb-0">Live football data powered by football-data.org &amp; The Odds API. Built with Python · Flask · Bootstrap 5.</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <a class="text-muted small me-3" href="{{ url_for('competitions_page') }}">Competitions</a>
+          <a class="text-muted small me-3" href="{{ url_for('compare_teams_page') }}">Compare</a>
+          <a class="text-muted small me-3" href="{{ url_for('virtual_game') }}">Virtual Game</a>
+          <a class="text-muted small me-3" href="{{ url_for('settings_page') }}">Settings</a>
+          <a class="text-muted small me-3" href="{{ url_for('about') }}">About</a>
+          <span class="text-muted small">© {{ current_year }} DKSPORTS</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+  {% endblock %}
+
+  {# Mobile bottom tab bar #}
+  <nav class="dk-tabbar" aria-label="Mobile navigation">
+    <a href="{{ url_for('home') }}" class="dk-tabbar-item {% if request.endpoint == 'home' %}is-active{% endif %}"><i class="bi bi-house-door-fill"></i><span>Home</span></a>
+    <a href="{{ url_for('fixtures_page') }}" class="dk-tabbar-item {% if request.endpoint == 'fixtures_page' %}is-active{% endif %}"><i class="bi bi-calendar2-week-fill"></i><span>Fixtures</span></a>
+    <a href="{{ url_for('players_page') }}" class="dk-tabbar-item {% if request.endpoint == 'players_page' %}is-active{% endif %}"><i class="bi bi-person-arms-up"></i><span>Players</span></a>
+    <a href="{{ url_for('search') }}" class="dk-tabbar-item {% if request.endpoint == 'search' %}is-active{% endif %}"><i class="bi bi-search"></i><span>Search</span></a>
+    <button type="button" class="dk-tabbar-item dk-tabbar-favs" data-tabbar-favs><i class="bi bi-star-fill"></i><span>Favs<span class="dk-fav-count" data-fav-count></span></span></button>
+  </nav>
+
+  <button class="btn btn-primary rounded-circle gg-scrolltop" id="scrollTopBtn" aria-label="Back to top"><i class="bi bi-arrow-up"></i></button>
+
+  <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

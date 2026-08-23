@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Search "{{ query }}" · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="container py-5">
+  <h1 class="h3 mb-3"><i class="bi bi-search text-primary me-2"></i>Search results</h1>
+  <div class="dk-search-wrap" data-autocomplete>
+    <form action="{{ url_for('search') }}" method="get" class="mb-2" data-save-search-form>
+      <div class="gg-search gg-search-pill gg-search-lg">
+        <div class="input-group input-group-lg">
+          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+          <input class="form-control border-start-0" type="search" name="q" value="{{ query }}" placeholder="Search teams, leagues, players, countries…" autofocus autocomplete="off" data-autocomplete-input />
+          <button class="btn btn-primary px-4" type="submit">Search</button>
+        </div>
+      </div>
+    </form>
+    <div class="dk-search-suggest" data-autocomplete-panel hidden></div>
+  </div>
+
+  <section class="dk-search-saved">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
+      <div>
+        <h2 class="h6 mb-1">Saved searches</h2>
+        <p class="text-muted small mb-0">Keep your favorite lookups nearby, even when you come back offline.</p>
+      </div>
+      {% if query %}
+      <button type="button" class="btn btn-outline-primary btn-sm" data-save-search-button data-query="{{ query }}">
+        <i class="bi bi-bookmark-plus me-1"></i>Save “{{ query }}”
+      </button>
+      {% endif %}
+    </div>
+    <div class="dk-search-history mb-3" data-search-history-pinned>
+      <div class="dk-skeleton-row"><span class="dk-skeleton-card"></span><span class="dk-skeleton-card"></span></div>
+    </div>
+    <div class="dk-search-history" data-search-history-recent></div>
+  </section>
+
+  {% if not query %}
+    <div class="dk-empty-state mt-4">
+      <span class="dk-empty-state-icon"><i class="bi bi-search"></i></span>
+      <div>
+        <p class="dk-empty-state-title">Start with a team, league, or player</p>
+        <p class="dk-empty-state-copy">Use the search box above to open your cached football archive instantly, even when you are offline.</p>
+      </div>
+    </div>
+  {% else %}
+    <div class="text-muted mb-4 mt-2">Showing matches for <strong>"{{ query }}"</strong> — {{ results_comps|length }} competitions, {{ results_teams|length }} teams, {{ results_players|length }} players.</div>
+
+    {% if results_comps %}
+    <h2 class="h5 mb-3"><i class="bi bi-trophy text-primary me-2"></i>Competitions</h2>
+    <div class="row g-3 mb-5">
+      {% for c in results_comps %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <a href="{{ url_for('competition_detail', code=c.code) }}" class="comp-card-mini text-decoration-none">
+          <img src="{{ c.emblem }}" alt="" onerror="this.style.display='none'" />
+          <div>
+            <div class="text-muted small">{{ c.country or '' }}</div>
+            <div class="fw-semibold">{{ c.name }}</div>
+          </div>
+          <i class="bi bi-arrow-up-right ms-auto text-primary"></i>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if results_teams %}
+    <h2 class="h5 mb-3"><i class="bi bi-people text-primary me-2"></i>Teams</h2>
+    <div class="row g-3 mb-5">
+      {% for t in results_teams %}
+      <div class="col-6 col-md-4 col-lg-3">
+        <a href="{{ url_for('team_detail', team_id=t.id) }}" class="team-card text-decoration-none">
+          <div class="team-crest"><img src="{{ t.crest }}" alt="" loading="lazy" onerror="this.style.display='none'" /></div>
+          <div class="text-center mt-2">
+            <div class="fw-semibold">{{ t.shortName or t.name }}</div>
+            <div class="text-muted small">{{ t._competition }}</div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if results_players %}
+    <h2 class="h5 mb-3"><i class="bi bi-person-arms-up text-primary me-2"></i>Players</h2>
+    <div class="row g-3">
+      {% for p in results_players %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <a href="{{ url_for('player_detail', person_id=p.id) }}" class="player-row-card text-decoration-none">
+          <div class="prc-avatar">
+            {% if p._photo_local or p._photo %}
+            <img src="{{ p._photo_local or p._photo }}" alt="{{ p.name }}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+            <span style="display:none"><i class="bi bi-person-fill"></i></span>
+            {% else %}
+            <i class="bi bi-person-fill"></i>
+            {% endif %}
+          </div>
+          <div class="prc-info">
+            <div class="fw-semibold text-truncate">{{ p.name }}</div>
+            <div class="prc-team">
+              {% if p.team.crest %}<img src="{{ p.team.crest }}" alt="" />{% endif %}
+              <span class="text-truncate">{{ p.team.shortName or p.team.name }}</span>
+              <span class="text-muted small ms-auto">{{ p.position or '' }}</span>
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not results_comps and not results_teams and not results_players %}
+      <div class="dk-empty-state">
+        <span class="dk-empty-state-icon"><i class="bi bi-binoculars"></i></span>
+        <div>
+          <p class="dk-empty-state-title">No cached matches for “{{ query }}”</p>
+          <p class="dk-empty-state-copy">Try a league like Premier League, a club like Real Madrid, or a player like Haaland.</p>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

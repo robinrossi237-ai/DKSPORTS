@@ -1,0 +1,27 @@
+{# Single news article card. Expects `n` dict with title/url/image/image_local/source/published_at/description. #}
+<a class="news-card" data-comp-code="{{ (n.competition_code or '')|upper }}" href="{{ n.url }}" target="_blank" rel="noopener noreferrer">
+  <div class="news-thumb">
+    {% set _news_img = img_url(n.get('image_local'), n.get('image') or n.get('image_url')) %}
+    {% if _news_img %}
+      <img src="{{ _news_img }}" alt="" loading="lazy" onerror="this.parentNode.classList.add('news-thumb-empty'); this.remove();" />
+    {% endif %}
+    <span class="news-thumb-fallback"><i class="bi bi-newspaper"></i></span>
+  </div>
+  <div class="news-body">
+    <div class="news-meta">
+      {% if n.source %}<span class="news-source"><i class="bi bi-broadcast me-1"></i>{{ n.source }}</span>{% endif %}
+      {% if n.published_at %}<span class="news-date">{{ n.published_at|fmt_day }}</span>{% endif %}
+    </div>
+    <h3 class="news-title">{{ n.title }}</h3>
+    {% if n.description %}<p class="news-desc">{{ n.description|truncate(140) }}</p>{% endif %}
+    <div class="news-footer">
+      <span class="news-link">Read article <i class="bi bi-arrow-up-right"></i></span>
+      {% if n.competition_name or n.competition_code %}
+      <span class="news-league-badge">
+        {% if n.competition_emblem %}<img src="{{ n.competition_emblem }}" alt="{{ n.competition_name or n.competition_code }}" loading="lazy" onerror="this.style.display='none'" />{% endif %}
+        <span>{{ n.competition_name or n.competition_code }}</span>
+      </span>
+      {% endif %}
+    </div>
+  </div>
+</a>

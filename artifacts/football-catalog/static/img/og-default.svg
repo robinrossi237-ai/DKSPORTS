@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#1a1740"/>
+    </linearGradient>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2f5dff"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#2f5dff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0b1220" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g transform="translate(80,200)">
+    <rect width="120" height="120" rx="28" fill="url(#grad)"/>
+    <text x="60" y="84" font-family="'Space Grotesk','Inter',sans-serif" font-size="54" font-weight="800" fill="white" text-anchor="middle">DK</text>
+  </g>
+  <text x="240" y="280" font-family="'Space Grotesk','Inter',sans-serif" font-size="92" font-weight="800" fill="white">DK<tspan fill="url(#grad)">SPORTS</tspan></text>
+  <text x="240" y="345" font-family="'Inter',sans-serif" font-size="34" font-weight="500" fill="#cbd5e1">Live football. Every league. Every day.</text>
+  <g transform="translate(80,440)" font-family="'Inter',sans-serif" font-size="22" fill="#94a3b8">
+    <text x="0" y="0">⚡ Live standings &amp; form  ·  🎯 Top scorers  ·  📅 Fixtures with odds  ·  📰 News  ·  ⭐ Favorites</text>
+  </g>
+  <g transform="translate(80,520)" font-family="'Inter',sans-serif" font-size="20" fill="#64748b">
+    <text x="0" y="0">Powered by football-data.org &amp; The Odds API</text>
+  </g>
+</svg>

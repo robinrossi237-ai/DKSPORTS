@@ -1,0 +1,1214 @@
+{% extends "base.html" %}
+{% block title %}Settings · {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.settings-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #fff;
+  padding: 2.5rem 0 2rem;
+}
+.settings-hero h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 800; }
+
+.settings-section-card {
+  border-radius: 1rem;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.settings-section-header {
+  background: linear-gradient(90deg, rgba(47,93,255,.05) 0%, rgba(139,92,246,.05) 100%);
+  border-bottom: 1px solid var(--dk-border, #e2e8f0);
+  padding: .9rem 1.25rem;
+  display: flex; align-items: center; gap: .6rem;
+}
+.settings-section-header h6 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; font-size: .85rem;
+  text-transform: uppercase; letter-spacing: .08em;
+  margin: 0; color: var(--dk-primary);
+}
+.settings-section-body { padding: 1.25rem; }
+
+/* API Key input group */
+.api-key-group { position: relative; }
+.api-key-input {
+  font-family: 'Courier New', monospace;
+  font-size: .82rem !important;
+  letter-spacing: .03em;
+  padding-right: 2.8rem !important;
+  border-radius: .6rem !important;
+}
+.api-key-toggle {
+  position: absolute; right: .6rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--bs-secondary);
+  cursor: pointer; padding: .2rem .4rem; line-height: 1;
+  z-index: 5;
+}
+.api-key-toggle:hover { color: var(--dk-primary); }
+
+/* Status badges */
+.key-status {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .75rem; font-weight: 600; padding: .2rem .6rem;
+  border-radius: 999px;
+}
+.key-status.ok    { background: rgba(22,163,74,.12); color: #15803d; border: 1px solid rgba(22,163,74,.25); }
+.key-status.miss  { background: rgba(220,38,38,.1); color: #dc2626; border: 1px solid rgba(220,38,38,.2); }
+.key-status.test  { background: rgba(234,179,8,.1); color: #ca8a04; border: 1px solid rgba(234,179,8,.2); }
+
+/* Import panel */
+.import-progress-bar { height: 6px; border-radius: 3px; overflow: hidden; background: var(--bs-secondary-bg); }
+.import-log-box {
+  height: 200px; overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: .76rem; line-height: 1.6;
+  background: #0a0f1e; color: #7dd3fc;
+  border-radius: .5rem; padding: .75rem;
+  border: 1px solid #1e3a5f;
+}
+.import-log-box .log-error { color: #f87171; }
+.import-log-box .log-warn  { color: #fbbf24; }
+.import-log-box .log-info  { color: #7dd3fc; }
+
+/* DB Stats */
+.db-stat-card {
+  border-radius: .75rem;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  padding: .75rem 1rem;
+  text-align: center;
+}
+.db-stat-num { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 800; line-height: 1; }
+.db-stat-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--bs-secondary); margin-top: .2rem; }
+
+.admin-op-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 991px) { .admin-op-grid { grid-template-columns: 1fr; } }
+.admin-op-card {
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: .9rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.94) 0%, rgba(248,250,252,.92) 100%);
+}
+.admin-op-card h6 {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 800;
+  margin-bottom: .85rem;
+  color: var(--dk-primary);
+}
+.admin-console-summary {
+  font-family: 'Courier New', monospace;
+  font-size: .75rem;
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: .6rem;
+  padding: .65rem .75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.backup-table code { font-size: .75rem; }
+
+[data-bs-theme="dark"] .settings-section-card { border-color: #1e2d4a; }
+[data-bs-theme="dark"] .settings-section-header { border-color: #1e2d4a; background: rgba(47,93,255,.08); }
+[data-bs-theme="dark"] .db-stat-card { border-color: #1e2d4a; }
+[data-bs-theme="dark"] .admin-op-card { border-color: #1e2d4a; background: rgba(15,23,42,.82); }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="settings-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-white-50">Home</a></li>
+        <li class="breadcrumb-item active text-white">Settings</li>
+      </ol>
+    </nav>
+    <h1 class="mb-1"><i class="bi bi-gear-wide-connected me-2"></i>Settings</h1>
+    <p class="opacity-75 mb-0">Manage API keys, import data locally, and configure DKSPORTS.</p>
+    {% if app_flags.offline_mode %}
+    <div class="mt-3">
+      <span class="badge rounded-pill text-bg-warning px-3 py-2"><i class="bi bi-plug-fill me-1"></i>Offline mode is active</span>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="container py-4">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in msgs %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show rounded-3 mb-3" role="alert">
+      <i class="bi bi-{{ 'check-circle' if cat == 'success' else 'exclamation-triangle' }} me-2"></i>{{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      <!-- ===== Offline Mode ===== -->
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-plug text-primary"></i>
+          <h6>Offline Mode</h6>
+        </div>
+        <div class="settings-section-body">
+          <form method="POST" action="{{ url_for('settings_save') }}">
+            <input type="hidden" name="form_type" value="offline_mode">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" role="switch" id="offlineModeSwitch" name="OFFLINE_MODE" value="1" {% if app_flags.offline_mode %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="offlineModeSwitch">Serve cached PostgreSQL and local assets immediately</label>
+            </div>
+            <p class="text-muted small mb-3">
+              When enabled, DKSPORTS skips live football API calls first and uses cached database content, local news images, and local Bootstrap/font assets right away.
+              Background sync and live update checks stay paused until you turn this off again.
+            </p>
+            <button type="submit" class="btn btn-primary rounded-pill px-4">
+              <i class="bi bi-hdd-network me-1"></i>Save Offline Mode
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-sliders text-primary"></i>
+          <h6>Display Preferences</h6>
+        </div>
+        <div class="settings-section-body">
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="settingsShowOdds" data-setting="show-odds" checked>
+            <label class="form-check-label fw-semibold" for="settingsShowOdds">Show 1/X/2 odds on match cards</label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="settingsShowPositions" data-setting="show-positions">
+            <label class="form-check-label fw-semibold" for="settingsShowPositions">Show team table positions on match cards</label>
+          </div>
+          <p class="text-muted small mb-0">
+            These display preferences stay in this browser, so if odds were hidden earlier you can turn them back on here instantly.
+          </p>
+        </div>
+      </div>
+
+      <!-- ===== API Keys ===== -->
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-key text-primary"></i>
+          <h6>API Keys</h6>
+        </div>
+        <div class="settings-section-body">
+          <form method="POST" action="{{ url_for('settings_save') }}" id="api-keys-form">
+            <input type="hidden" name="form_type" value="api_keys">
+
+            {% set keys_def = [
+              {
+                'env': 'FOOTBALL_DATA_API_KEY',
+                'label': 'football-data.org v4',
+                'desc': 'Core data: leagues, standings, fixtures, teams, scorers.',
+                'link': 'https://www.football-data.org/client/register',
+                'link_text': 'Get free key'
+              },
+              {
+                'env': 'API_FOOTBALL_KEY',
+                'label': 'apifootball.com',
+                'desc': 'Team and coach photos, squad photos.',
+                'link': 'https://apifootball.com/pricing/',
+                'link_text': 'Sign up'
+              },
+              {
+                'env': 'ODDS_API_KEY',
+                'label': 'The Odds API',
+                'desc': 'Live betting odds: head-to-head and match markets.',
+                'link': 'https://the-odds-api.com/',
+                'link_text': 'Get key'
+              },
+              {
+                'env': 'RAPIDAPI_FOOTBALL_NEWS_KEY',
+                'label': 'football-news11 (RapidAPI)',
+                'desc': 'Football news feed via RapidAPI.',
+                'link': 'https://rapidapi.com/football-news11/api/football-news11',
+                'link_text': 'Subscribe'
+              },
+              {
+                'env': 'RAPIDAPI_FOOTAPI7_KEY',
+                'label': 'footapi7 (RapidAPI) — Shotmaps',
+                'desc': 'Shot maps, match statistics, lineups, incidents.',
+                'link': 'https://rapidapi.com/fluis.lacasse/api/footapi7',
+                'link_text': 'Subscribe'
+              },
+              {
+                'env': 'RAPIDAPI_ESPN_SOCCER_KEY',
+                'label': 'ESPN-style RapidAPI feeds',
+                'desc': 'Extra player bio and related league payloads used by the offline archive scripts.',
+                'link': 'https://rapidapi.com/',
+                'link_text': 'Open RapidAPI'
+              },
+            ] %}
+
+            {% for k in keys_def %}
+            {% set is_set = current_keys.get(k.env) %}
+            <div class="mb-4">
+              <div class="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-2">
+                <label class="form-label fw-semibold mb-0" for="key-{{ k.env }}">{{ k.label }}</label>
+                <div class="d-flex align-items-center gap-2">
+                  {% if is_set %}
+                  <span class="key-status ok"><i class="bi bi-check-circle-fill"></i>Configured</span>
+                  {% else %}
+                  <span class="key-status miss"><i class="bi bi-x-circle-fill"></i>Not set</span>
+                  {% endif %}
+                  <a href="{{ k.link }}" target="_blank" class="text-primary small">{{ k.link_text }} <i class="bi bi-box-arrow-up-right"></i></a>
+                </div>
+              </div>
+              <p class="text-muted small mb-1">{{ k.desc }}</p>
+              <div class="api-key-group">
+                <input
+                  type="password"
+                  id="key-{{ k.env }}"
+                  name="{{ k.env }}"
+                  class="form-control api-key-input"
+                  placeholder="{{ '••••••••••••••••' if is_set else 'Paste your API key here…' }}"
+                  autocomplete="off"
+                >
+                <button type="button" class="api-key-toggle" title="Toggle visibility"
+                  onclick="toggleKeyVisibility('key-{{ k.env }}', this)">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+              <div class="form-text">Env var: <code>{{ k.env }}</code> {% if is_set %}— Leave blank to keep current value.{% endif %}</div>
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary rounded-pill px-4">
+              <i class="bi bi-floppy me-1"></i>Save API Keys
+            </button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3 ms-2" id="test-keys-btn">
+              <i class="bi bi-wifi me-1"></i>Test All Keys
+            </button>
+            <div id="key-test-results" class="admin-console-summary mt-3" style="display:none">Testing API connectivity...</div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ===== Data Import ===== -->
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-cloud-download text-primary"></i>
+          <h6>Data Import &amp; Offline Cache</h6>
+        </div>
+        <div class="settings-section-body">
+          <p class="text-muted small mb-3">
+            Download all league data (standings, teams, fixtures, scorers) and team logos into the PostgreSQL database.
+            The app reads from cache first, falling back to live API calls. Logos are saved to <code>static/img/team-logos/_imported/</code>.
+          </p>
+
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button type="button" class="btn btn-primary rounded-pill" id="import-start-btn">
+              <i class="bi bi-play-circle me-1"></i>Start Full Import
+            </button>
+            <button type="button" class="btn btn-outline-primary rounded-pill" id="import-refresh-btn">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh Status
+            </button>
+            <a href="{{ url_for('settings_check_updates') }}" class="btn btn-outline-secondary rounded-pill">
+              <i class="bi bi-cloud-check me-1"></i>Check for Updates
+            </a>
+          </div>
+
+          <!-- Progress -->
+          <div id="import-status-panel" class="mb-3" style="display:none">
+            <div class="d-flex justify-content-between small mb-1">
+              <span id="import-status-label">Importing…</span>
+              <span id="import-progress-pct">0%</span>
+            </div>
+            <div class="import-progress-bar">
+              <div class="progress-bar bg-primary" id="import-progress-bar" style="width:0%;height:100%;transition:width .3s"></div>
+            </div>
+            <div class="import-log-box mt-2" id="import-log-box">
+              <div class="log-info">Waiting for import to start…</div>
+            </div>
+          </div>
+
+          <!-- Import log table -->
+          {% if import_log %}
+          <div class="mt-3">
+            <h6 class="small fw-bold text-uppercase text-muted mb-2">Recent Import Log</h6>
+            <div class="table-responsive">
+              <table class="table table-sm" style="font-size:.8rem">
+                <thead><tr><th>Type</th><th>Code</th><th>Records</th><th>Status</th><th>Time</th></tr></thead>
+                <tbody>
+                  {% for row in import_log[:20] %}
+                  <tr>
+                    <td>{{ row.entity_type }}</td>
+                    <td><code>{{ row.entity_code }}</code></td>
+                    <td>{{ row.records }}</td>
+                    <td>
+                      <span class="badge {{ 'bg-success' if row.status == 'ok' else 'bg-danger' }}">{{ row.status }}</span>
+                    </td>
+                    <td class="text-muted">{{ row.imported_at }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ===== Admin Tools ===== -->
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-sliders text-primary"></i>
+          <h6>Admin Tools</h6>
+        </div>
+        <div class="settings-section-body">
+          <p class="text-muted small mb-3">
+            Run targeted imports and hydrations without leaving the app, then create portable backups that include PostgreSQL data plus local offline media folders.
+          </p>
+
+          <datalist id="knownSeasonsList">
+            {% for season in all_known_seasons %}
+            <option value="{{ season }}"></option>
+            {% endfor %}
+          </datalist>
+
+          <div class="admin-op-grid mb-3">
+            <form class="admin-op-card" data-admin-form>
+              <input type="hidden" name="operation" value="core_import_league">
+              <h6><i class="bi bi-download me-1"></i>Core Import by League</h6>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Competition</label>
+                <select name="competition_code" class="form-select form-select-sm" required>
+                  <option value="">Choose a league...</option>
+                  {% for comp in admin_competitions %}
+                  <option value="{{ comp.code }}">{{ comp.name }}{% if comp.country %} · {{ comp.country }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">football-data Delay (s)</label>
+                <input type="number" name="fd_delay" class="form-control form-control-sm" value="8.0" min="0" step=".25">
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm rounded-pill" data-admin-submit>
+                <i class="bi bi-play-circle me-1"></i>Run Core Import
+              </button>
+            </form>
+
+            <form class="admin-op-card" data-admin-form>
+              <input type="hidden" name="operation" value="hydrate_league">
+              <h6><i class="bi bi-stars me-1"></i>Deep Hydration by League</h6>
+              <div class="row g-2">
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Competition</label>
+                  <select name="competition_code" class="form-select form-select-sm" required>
+                    <option value="">Choose a league...</option>
+                    {% for comp in admin_competitions %}
+                    <option value="{{ comp.code }}">{{ comp.name }}{% if comp.country %} · {{ comp.country }}{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Match Limit</label>
+                  <input type="number" name="match_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Player Limit</label>
+                  <input type="number" name="player_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">H2H Limit</label>
+                  <input type="number" name="h2h_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">News Pages</label>
+                  <input type="number" name="news_max_pages" class="form-control form-control-sm" value="4" min="1" max="20">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">FD Delay (s)</label>
+                  <input type="number" name="fd_delay" class="form-control form-control-sm" value="7.5" min="0" step=".25">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Aux Delay (s)</label>
+                  <input type="number" name="aux_delay" class="form-control form-control-sm" value="0.75" min="0" step=".25">
+                </div>
+              </div>
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" value="1" id="hydrateCoreOnly" name="core_only">
+                <label class="form-check-label small" for="hydrateCoreOnly">Core-only hydration</label>
+              </div>
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" value="1" id="hydrateFootapi7" name="include_footapi7">
+                <label class="form-check-label small" for="hydrateFootapi7">Include footapi7 enrichments</label>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm rounded-pill" data-admin-submit>
+                <i class="bi bi-lightning-charge me-1"></i>Run League Hydration
+              </button>
+            </form>
+
+            <form class="admin-op-card" data-admin-form>
+              <input type="hidden" name="operation" value="hydrate_team">
+              <h6><i class="bi bi-shield-check me-1"></i>Hydrate One Team</h6>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Team</label>
+                <select name="team_id" class="form-select form-select-sm" required>
+                  <option value="">Choose a cached team...</option>
+                  {% for team in admin_teams %}
+                  <option value="{{ team.id }}">{{ team.name }} (#{{ team.id }}){% if team.leagues %} · {{ team.leagues }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Competition</label>
+                  <select name="competition_code" class="form-select form-select-sm">
+                    <option value="">Auto-detect</option>
+                    {% for comp in admin_competitions %}
+                    <option value="{{ comp.code }}">{{ comp.code }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Season</label>
+                  <input type="text" name="season" class="form-control form-control-sm" list="knownSeasonsList" placeholder="auto">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Match Limit</label>
+                  <input type="number" name="match_limit" class="form-control form-control-sm" value="30" min="1">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Player Limit</label>
+                  <input type="number" name="player_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Aux Delay (s)</label>
+                  <input type="number" name="aux_delay" class="form-control form-control-sm" value="0.75" min="0" step=".25">
+                </div>
+              </div>
+              <div class="form-check my-2">
+                <input class="form-check-input" type="checkbox" value="1" id="hydrateTeamFootapi7" name="include_footapi7">
+                <label class="form-check-label small" for="hydrateTeamFootapi7">Include footapi7 enrichments</label>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm rounded-pill" data-admin-submit>
+                <i class="bi bi-person-workspace me-1"></i>Hydrate Team
+              </button>
+            </form>
+
+            <form class="admin-op-card" data-admin-form>
+              <input type="hidden" name="operation" value="hydrate_season">
+              <h6><i class="bi bi-calendar-range me-1"></i>Hydrate One Season</h6>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Competition</label>
+                  <select name="competition_code" class="form-select form-select-sm" required>
+                    <option value="">Choose...</option>
+                    {% for comp in admin_competitions %}
+                    <option value="{{ comp.code }}">{{ comp.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Season</label>
+                  <input type="text" name="season" class="form-control form-control-sm" list="knownSeasonsList" placeholder="2024" required>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Match Limit</label>
+                  <input type="number" name="match_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">Player Limit</label>
+                  <input type="number" name="player_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">H2H Limit</label>
+                  <input type="number" name="h2h_limit" class="form-control form-control-sm" placeholder="all">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-semibold">News Pages</label>
+                  <input type="number" name="news_max_pages" class="form-control form-control-sm" value="4" min="1" max="20">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Aux Delay (s)</label>
+                  <input type="number" name="aux_delay" class="form-control form-control-sm" value="0.75" min="0" step=".25">
+                </div>
+              </div>
+              <div class="form-check my-2">
+                <input class="form-check-input" type="checkbox" value="1" id="hydrateSeasonFootapi7" name="include_footapi7">
+                <label class="form-check-label small" for="hydrateSeasonFootapi7">Include footapi7 enrichments</label>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm rounded-pill" data-admin-submit>
+                <i class="bi bi-hourglass-split me-1"></i>Hydrate Season
+              </button>
+            </form>
+          </div>
+
+          <div class="admin-op-grid">
+            <form class="admin-op-card" data-admin-form>
+              <input type="hidden" name="operation" value="create_backup">
+              <h6><i class="bi bi-box-arrow-down me-1"></i>Create Portable Backup</h6>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Backup Name</label>
+                <input type="text" name="backup_name" class="form-control form-control-sm" placeholder="dksports_offline_catalog">
+                <div class="form-text">Creates a ZIP with PostgreSQL dump plus <code>static/img</code> and <code>static/vendor</code>.</div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm rounded-pill" data-admin-submit>
+                <i class="bi bi-archive me-1"></i>Create Backup
+              </button>
+            </form>
+
+            <form class="admin-op-card" data-admin-form>
+              <input type="hidden" name="operation" value="restore_backup">
+              <h6><i class="bi bi-box-arrow-in-down me-1"></i>Restore Backup</h6>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Backup Archive</label>
+                <select name="backup_name" class="form-select form-select-sm" id="restoreBackupSelect" required>
+                  <option value="">Choose a backup...</option>
+                  {% for backup in admin_backups %}
+                  <option value="{{ backup.name }}">{{ backup.name }} · {{ backup.size_mb }} MB · {{ backup.modified_at }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Type RESTORE to confirm</label>
+                <input type="text" name="confirm_restore" class="form-control form-control-sm" placeholder="RESTORE">
+              </div>
+              <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill" data-admin-submit>
+                <i class="bi bi-exclamation-octagon me-1"></i>Restore Backup
+              </button>
+            </form>
+          </div>
+
+          <div id="admin-status-panel" class="mt-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <span id="admin-status-label">{{ 'Running: ' ~ admin_status.label if admin_status.running else 'Admin tools ready' }}</span>
+              <span id="admin-progress-pct">0%</span>
+            </div>
+            <div class="import-progress-bar">
+              <div class="progress-bar bg-info" id="admin-progress-bar" style="width:0%;height:100%;transition:width .3s"></div>
+            </div>
+            <div class="import-log-box mt-2" id="admin-log-box">
+              <div class="log-info">Launch an admin task to see live progress here.</div>
+            </div>
+            <div class="admin-console-summary mt-2" id="admin-result-box">No admin task result yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Virtual Game Settings ===== -->
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-controller text-primary"></i>
+          <h6>Virtual Game Configuration</h6>
+        </div>
+        <div class="settings-section-body">
+          <form method="POST" action="{{ url_for('settings_save') }}">
+            <input type="hidden" name="form_type" value="virtual_game">
+            <div class="row g-3">
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">House Cut (%)</label>
+                <input type="number" name="VIRTUAL_GAME_HOUSE_CUT" class="form-control"
+                  value="{{ env_vals.VIRTUAL_GAME_HOUSE_CUT or '20' }}" min="0" max="50" step="1">
+                <div class="form-text">Default: 20%</div>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Min Bet Amount</label>
+                <input type="number" name="VIRTUAL_GAME_MIN_BET" class="form-control"
+                  value="{{ env_vals.VIRTUAL_GAME_MIN_BET or '25' }}" min="1" step="1">
+                <div class="form-text">Default: 25</div>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Max Bet Amount</label>
+                <input type="number" name="VIRTUAL_GAME_MAX_BET" class="form-control"
+                  value="{{ env_vals.VIRTUAL_GAME_MAX_BET or '500' }}" min="10" step="10">
+                <div class="form-text">Default: 500</div>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small fw-semibold">Countdown Duration (s)</label>
+                <input type="number" name="VIRTUAL_GAME_COUNTDOWN" class="form-control"
+                  value="{{ env_vals.VIRTUAL_GAME_COUNTDOWN or '15' }}" min="5" max="60" step="1">
+                <div class="form-text">Default: 15 seconds</div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 mt-3">
+              <i class="bi bi-floppy me-1"></i>Save Game Config
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column -->
+    <div class="col-lg-4">
+
+      <!-- DB Stats -->
+      <div class="settings-section-card mb-3">
+        <div class="settings-section-header">
+          <i class="bi bi-database text-primary"></i>
+          <h6>Local Database</h6>
+        </div>
+        <div class="settings-section-body">
+          <div class="row g-2 mb-2">
+            {% set stat_items = [
+              ('competitions', 'Competitions', 'bi-trophy'),
+              ('teams', 'Teams', 'bi-shield-fill'),
+              ('matches', 'Matches', 'bi-calendar2-week'),
+              ('standings', 'Standing rows', 'bi-list-ol'),
+              ('scorers', 'Scorer rows', 'bi-person-badge'),
+              ('match_events', 'Match events', 'bi-lightning-charge'),
+              ('match_lineups', 'Lineup rows', 'bi-people-fill'),
+              ('match_statistics', 'Match stats', 'bi-bar-chart-fill'),
+              ('match_incidents', 'Incidents', 'bi-exclamation-circle'),
+              ('news_articles', 'News articles', 'bi-newspaper'),
+              ('player_profiles', 'Player profiles', 'bi-person-vcard'),
+              ('odds_cache', 'Odds snapshots', 'bi-currency-dollar'),
+              ('h2h_records', 'H2H records', 'bi-arrow-left-right'),
+              ('top_cards', 'Top cards rows', 'bi-card-checklist'),
+              ('images', 'Cached images', 'bi-image'),
+              ('virtual_game_history', 'Virtual games', 'bi-controller'),
+            ] %}
+            {% for key, label, icon in stat_items %}
+            <div class="col-6">
+              <div class="db-stat-card">
+                <div class="db-stat-num" id="dbstat-{{ key }}">{{ db_stats.get(key, 0) }}</div>
+                <div class="db-stat-label"><i class="bi {{ icon }} me-1"></i>{{ label }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% if db_stats.get('competitions', 0) == 0 %}
+          <p class="text-muted small mb-0 mt-1">
+            <i class="bi bi-info-circle me-1"></i>Database is empty. Run a <strong>Full Import</strong> to cache data locally.
+          </p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Match Archive Coverage -->
+      <div class="settings-section-card mb-3">
+        <div class="settings-section-header">
+          <i class="bi bi-kanban text-primary"></i>
+          <h6>Match Archive Coverage</h6>
+        </div>
+        <div class="settings-section-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle backup-table" style="font-size:.76rem">
+              <thead>
+                <tr>
+                  <th>League</th>
+                  <th>Season</th>
+                  <th>Teams</th>
+                  <th>Matches</th>
+                  <th>Played</th>
+                  <th>Pending</th>
+                  <th>Matchdays</th>
+                  <th>Last sync</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in match_archive_coverage %}
+                <tr{% if not row.matches_total %} class="table-warning"{% endif %}>
+                  <td>
+                    <div class="fw-semibold">{{ row.name }}</div>
+                    <div class="text-muted">
+                      <code>{{ row.code }}</code>
+                      {% if row.current_matchday %} • MD {{ row.current_matchday }}{% endif %}
+                    </div>
+                  </td>
+                  <td>{{ row.season or '—' }}</td>
+                  <td>{{ row.team_count }}</td>
+                  <td>
+                    <strong>{{ row.matches_total }}</strong>
+                    {% if not row.matches_total %}
+                    <div class="text-muted small">not cached yet</div>
+                    {% endif %}
+                  </td>
+                  <td>{{ row.matches_finished }}</td>
+                  <td>{{ row.matches_pending }}</td>
+                  <td>
+                    {{ row.matchday_range }}
+                    {% if row.matchdays_count %}<div class="text-muted small">{{ row.matchdays_count }} groups</div>{% endif %}
+                  </td>
+                  <td class="text-muted">{{ row.last_match_import or '—' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="text-muted small mb-0">
+            Rows with <strong>0</strong> matches still need a successful match import for that competition.
+          </p>
+        </div>
+      </div>
+
+      <!-- Auto Sync Status -->
+      <div class="settings-section-card mb-3" id="sync-status-card">
+        <div class="settings-section-header">
+          <i class="bi bi-arrow-repeat text-primary" id="sync-spin-icon"></i>
+          <h6>Auto Sync Status</h6>
+          <span class="ms-auto badge rounded-pill" id="sync-badge" style="font-size:.7rem">checking…</span>
+        </div>
+        <div class="settings-section-body py-2 px-3">
+          <div class="small text-muted mb-2" id="sync-current-label">Checking for stale data on startup…</div>
+          <div class="import-progress-bar mb-2">
+            <div class="progress-bar bg-success" id="sync-progress-bar" style="width:0%;height:100%;transition:width .4s"></div>
+          </div>
+          <div class="d-flex gap-3 small" style="font-size:.76rem">
+            <span><i class="bi bi-check-circle text-success me-1"></i><span id="sync-synced-count">0</span> refreshed</span>
+            <span><i class="bi bi-skip-forward text-secondary me-1"></i><span id="sync-skipped-count">0</span> up-to-date</span>
+            <span><i class="bi bi-exclamation-triangle text-warning me-1"></i><span id="sync-error-count">0</span> errors</span>
+          </div>
+          <div class="text-muted mt-2" style="font-size:.72rem" id="sync-finished-label"></div>
+        </div>
+      </div>
+
+      <!-- Recent Import Failures -->
+      <div class="settings-section-card mb-3">
+        <div class="settings-section-header">
+          <i class="bi bi-bug text-primary"></i>
+          <h6>Recent Failures</h6>
+        </div>
+        <div class="settings-section-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle backup-table" style="font-size:.78rem">
+              <thead>
+                <tr><th>Type</th><th>Code</th><th>Status</th><th>Error</th><th>Time</th></tr>
+              </thead>
+              <tbody id="admin-failure-rows">
+                {% if import_failures %}
+                  {% for row in import_failures %}
+                  <tr>
+                    <td>{{ row.entity_type }}</td>
+                    <td><code>{{ row.entity_code }}</code></td>
+                    <td><span class="badge text-bg-danger">{{ row.status }}</span></td>
+                    <td class="text-muted">{{ row.error_message or '—' }}</td>
+                    <td class="text-muted">{{ row.imported_at }}</td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td colspan="5" class="text-muted">No recent import failures.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portable Backups -->
+      <div class="settings-section-card mb-3">
+        <div class="settings-section-header">
+          <i class="bi bi-archive text-primary"></i>
+          <h6>Portable Backups</h6>
+        </div>
+        <div class="settings-section-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle backup-table" style="font-size:.78rem">
+              <thead>
+                <tr><th>Name</th><th>Size</th><th>Modified</th></tr>
+              </thead>
+              <tbody id="backup-rows">
+                {% if admin_backups %}
+                  {% for backup in admin_backups %}
+                  <tr>
+                    <td><code>{{ backup.name }}</code></td>
+                    <td>{{ backup.size_mb }} MB</td>
+                    <td class="text-muted">{{ backup.modified_at }}</td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr><td colspan="3" class="text-muted">No backups created yet.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick links -->
+      <div class="settings-section-card mb-3">
+        <div class="settings-section-header">
+          <i class="bi bi-lightning text-primary"></i>
+          <h6>Quick Links</h6>
+        </div>
+        <div class="settings-section-body p-2">
+          {% set links = [
+            ('home', 'bi-house', 'Home'),
+            ('competitions_page', 'bi-trophy', 'Competitions'),
+            ('fixtures_page', 'bi-calendar2-week', 'Fixtures'),
+            ('players_page', 'bi-people', 'Players'),
+            ('virtual_game', 'bi-controller', 'Virtual Game'),
+            ('news_page', 'bi-newspaper', 'News'),
+          ] %}
+          {% for route, icon, label in links %}
+          <a href="{{ url_for(route) }}" class="d-flex align-items-center gap-2 p-2 rounded-3 text-body text-decoration-none hover-bg mb-1" style="transition:background .15s">
+            <i class="bi {{ icon }} text-primary"></i>{{ label }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- .env template -->
+      <div class="settings-section-card">
+        <div class="settings-section-header">
+          <i class="bi bi-file-text text-primary"></i>
+          <h6>.env Template</h6>
+        </div>
+        <div class="settings-section-body">
+          <p class="text-muted small mb-2">Copy this template to a <code>.env</code> file in the app directory and fill in your keys.</p>
+          <a href="{{ url_for('download_env_template') }}" class="btn btn-sm btn-outline-primary rounded-pill">
+            <i class="bi bi-download me-1"></i>Download .env.example
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ---- API Key visibility toggle ----
+function toggleKeyVisibility(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const icon = btn.querySelector("i");
+  if (inp.type === "password") {
+    inp.type = "text";
+    icon.className = "bi bi-eye-slash";
+  } else {
+    inp.type = "password";
+    icon.className = "bi bi-eye";
+  }
+}
+
+function renderKeyTestResults(results) {
+  const box = document.getElementById("key-test-results");
+  if (!box) return;
+  const lines = [];
+  const order = ["football_data", "odds_api", "news_api", "footapi7", "espn_style_rapidapi", "offline_mode"];
+  const labels = {
+    football_data: "football-data.org",
+    odds_api: "The Odds API",
+    news_api: "football-news11",
+    footapi7: "footapi7",
+    espn_style_rapidapi: "ESPN-style RapidAPI",
+    offline_mode: "Offline mode",
+  };
+  order.forEach((key) => {
+    const row = results[key];
+    if (!row) return;
+    const parts = [`${labels[key] || key}: ${row.ok ? "OK" : "FAIL"}`];
+    if (row.status_code) parts.push(`status=${row.status_code}`);
+    if (row.name) parts.push(`name=${row.name}`);
+    if (row.sport) parts.push(`sport=${row.sport}`);
+    if (row.event_count !== undefined) parts.push(`events=${row.event_count}`);
+    if (row.requests_remaining) parts.push(`remaining=${row.requests_remaining}`);
+    if (row.requests_used) parts.push(`used=${row.requests_used}`);
+    if (row.enabled !== undefined) parts.push(`enabled=${row.enabled}`);
+    if (row.error) parts.push(`error=${row.error}`);
+    lines.push(parts.join(" | "));
+  });
+  box.style.display = "block";
+  box.textContent = lines.join("\n");
+}
+
+const testKeysBtn = document.getElementById("test-keys-btn");
+if (testKeysBtn) {
+  testKeysBtn.addEventListener("click", async function () {
+    const box = document.getElementById("key-test-results");
+    testKeysBtn.disabled = true;
+    if (box) {
+      box.style.display = "block";
+      box.textContent = "Testing API connectivity...";
+    }
+    try {
+      const resp = await fetch("/settings/test-keys");
+      const data = await resp.json();
+      renderKeyTestResults(data);
+    } catch (_) {
+      if (box) {
+        box.style.display = "block";
+        box.textContent = "Could not test the configured APIs right now.";
+      }
+    } finally {
+      testKeysBtn.disabled = false;
+    }
+  });
+}
+
+// ---- Import polling ----
+let importPolling = null;
+
+function updateImportUI(data) {
+  const panel = document.getElementById("import-status-panel");
+  panel.style.display = "block";
+
+  const pct = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+  document.getElementById("import-progress-pct").textContent = pct + "%";
+  document.getElementById("import-progress-bar").style.width = pct + "%";
+  document.getElementById("import-status-label").textContent =
+    data.running ? ("Importing: " + (data.current_task || "…")) : (data.last_run ? "Last run: " + data.last_run : "Ready");
+
+  const logBox = document.getElementById("import-log-box");
+  if (data.log && data.log.length) {
+    logBox.innerHTML = data.log.slice(-50).map(e => {
+      const cls = e.level === "error" ? "log-error" : e.level === "warn" ? "log-warn" : "log-info";
+      return `<div class="${cls}">[${e.ts}] ${e.msg}</div>`;
+    }).join("");
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+}
+
+function pollImportStatus() {
+  fetch("/settings/import/status")
+    .then(r => r.json())
+    .then(data => {
+      updateImportUI(data);
+      if (!data.running && importPolling) {
+        clearInterval(importPolling);
+        importPolling = null;
+        document.getElementById("import-start-btn").disabled = false;
+      }
+    })
+    .catch(() => {});
+}
+
+document.getElementById("import-start-btn").addEventListener("click", function(){
+  this.disabled = true;
+  fetch("/settings/import/start", { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("import-status-panel").style.display = "block";
+      if (data.started || data.running) {
+        importPolling = setInterval(pollImportStatus, 2000);
+        pollImportStatus();
+      } else {
+        alert(data.message || "Could not start import.");
+        this.disabled = false;
+      }
+    })
+    .catch(() => { this.disabled = false; });
+});
+
+document.getElementById("import-refresh-btn").addEventListener("click", pollImportStatus);
+
+// Auto-poll if already running
+fetch("/settings/import/status")
+  .then(r => r.json())
+  .then(data => {
+    if (data.running) {
+      document.getElementById("import-status-panel").style.display = "block";
+      updateImportUI(data);
+      importPolling = setInterval(pollImportStatus, 2000);
+    }
+  })
+  .catch(() => {});
+
+// ---- Admin tools polling ----
+let adminPolling = null;
+
+function adminEsc(s) {
+  return String(s || "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
+function setAdminButtonsDisabled(disabled) {
+  document.querySelectorAll("[data-admin-submit]").forEach(btn => {
+    btn.disabled = !!disabled;
+  });
+}
+
+function renderBackupRows(backups) {
+  const tbody = document.getElementById("backup-rows");
+  const restoreSelect = document.getElementById("restoreBackupSelect");
+  if (!tbody || !restoreSelect) return;
+  if (!backups || !backups.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-muted">No backups created yet.</td></tr>';
+    restoreSelect.innerHTML = '<option value="">Choose a backup...</option>';
+    return;
+  }
+  tbody.innerHTML = backups.map(b => `
+    <tr>
+      <td><code>${adminEsc(b.name)}</code></td>
+      <td>${adminEsc(b.size_mb)} MB</td>
+      <td class="text-muted">${adminEsc(b.modified_at)}</td>
+    </tr>
+  `).join("");
+  const currentVal = restoreSelect.value;
+  restoreSelect.innerHTML = '<option value="">Choose a backup...</option>' + backups.map(b => (
+    `<option value="${adminEsc(b.name)}">${adminEsc(b.name)} · ${adminEsc(b.size_mb)} MB · ${adminEsc(b.modified_at)}</option>`
+  )).join("");
+  restoreSelect.value = currentVal;
+}
+
+function renderFailureRows(failures) {
+  const tbody = document.getElementById("admin-failure-rows");
+  if (!tbody) return;
+  if (!failures || !failures.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No recent import failures.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = failures.map(row => `
+    <tr>
+      <td>${adminEsc(row.entity_type)}</td>
+      <td><code>${adminEsc(row.entity_code)}</code></td>
+      <td><span class="badge text-bg-danger">${adminEsc(row.status)}</span></td>
+      <td class="text-muted">${adminEsc(row.error_message || "—")}</td>
+      <td class="text-muted">${adminEsc(row.imported_at)}</td>
+    </tr>
+  `).join("");
+}
+
+function updateAdminUI(data) {
+  const pct = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+  const statusLabel = document.getElementById("admin-status-label");
+  const progressPct = document.getElementById("admin-progress-pct");
+  const progressBar = document.getElementById("admin-progress-bar");
+  const logBox = document.getElementById("admin-log-box");
+  const resultBox = document.getElementById("admin-result-box");
+
+  if (statusLabel) {
+    statusLabel.textContent = data.running
+      ? `Running: ${data.label || data.operation || "admin task"}${data.current_task ? " — " + data.current_task : ""}`
+      : (data.error ? `Last admin task failed: ${data.label || data.operation || ""}` : "Admin tools ready");
+  }
+  if (progressPct) progressPct.textContent = pct + "%";
+  if (progressBar) progressBar.style.width = pct + "%";
+  if (logBox && data.log && data.log.length) {
+    logBox.innerHTML = data.log.slice(-80).map(e => {
+      const cls = e.level === "error" ? "log-error" : e.level === "warn" ? "log-warn" : "log-info";
+      return `<div class="${cls}">[${adminEsc(e.ts)}] ${adminEsc(e.msg)}</div>`;
+    }).join("");
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+  if (resultBox) {
+    if (data.error) {
+      resultBox.textContent = data.error;
+    } else if (data.result && Object.keys(data.result).length) {
+      resultBox.textContent = JSON.stringify(data.result, null, 2);
+    } else {
+      resultBox.textContent = data.running ? "Task in progress..." : "No admin task result yet.";
+    }
+  }
+  if (data.backups) renderBackupRows(data.backups);
+  if (data.failures) renderFailureRows(data.failures);
+  setAdminButtonsDisabled(data.running);
+}
+
+function pollAdminStatus() {
+  fetch("/settings/admin/status")
+    .then(r => r.json())
+    .then(data => {
+      updateAdminUI(data);
+      if (!data.running && adminPolling) {
+        clearInterval(adminPolling);
+        adminPolling = null;
+      }
+    })
+    .catch(() => {});
+}
+
+document.querySelectorAll("[data-admin-form]").forEach(form => {
+  form.addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const resp = await fetch("/settings/admin/start", { method: "POST", body: formData });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      alert(data.message || "Could not start admin operation.");
+      if (data.status) updateAdminUI(data.status);
+      return;
+    }
+    if (data.status) updateAdminUI(data.status);
+    if (!adminPolling) adminPolling = setInterval(pollAdminStatus, 2500);
+    pollAdminStatus();
+  });
+});
+
+pollAdminStatus();
+
+// ---- Smart Sync status widget ----
+let syncPolling = null;
+
+const DB_STAT_KEYS = [
+  'competitions','teams','matches','standings','scorers',
+  'match_events','match_lineups','match_statistics','match_incidents',
+  'news_articles','player_profiles','odds_cache','h2h_records','top_cards',
+  'images','virtual_game_history'
+];
+
+function updateDbStatCards(stats) {
+  if (!stats) return;
+  DB_STAT_KEYS.forEach(k => {
+    const el = document.getElementById('dbstat-' + k);
+    if (el && stats[k] !== undefined) el.textContent = stats[k];
+  });
+}
+
+function updateSyncUI(d) {
+  if (d.db_stats) updateDbStatCards(d.db_stats);
+  const synced  = (d.synced  || []).length;
+  const skipped = (d.skipped || []).length;
+  const errors  = (d.errors  || []).length;
+  const total   = synced + skipped + errors;
+  const done    = !d.running;
+
+  document.getElementById("sync-synced-count").textContent  = synced;
+  document.getElementById("sync-skipped-count").textContent = skipped;
+  document.getElementById("sync-error-count").textContent   = errors;
+
+  const pct = total > 0 ? Math.round((total / 14) * 100) : (done ? 100 : 0);
+  document.getElementById("sync-progress-bar").style.width = Math.min(pct, 100) + "%";
+
+  const badge = document.getElementById("sync-badge");
+  const icon  = document.getElementById("sync-spin-icon");
+  const cur   = document.getElementById("sync-current-label");
+  const fin   = document.getElementById("sync-finished-label");
+
+  if (d.running) {
+    badge.textContent = "syncing";
+    badge.style.background = "rgba(47,93,255,.15)";
+    badge.style.color = "#2f5dff";
+    icon.style.animation = "spin 1s linear infinite";
+    cur.textContent = d.current ? "Checking " + d.current + "…" : "Running…";
+    fin.textContent = "";
+  } else {
+    badge.textContent = errors ? "done (with errors)" : "up to date";
+    badge.style.background = errors ? "rgba(220,38,38,.1)" : "rgba(22,163,74,.12)";
+    badge.style.color = errors ? "#dc2626" : "#15803d";
+    icon.style.animation = "";
+    cur.textContent = synced
+      ? synced + " competition(s) refreshed, " + skipped + " already up-to-date."
+      : skipped ? "All " + skipped + " competitions are already up-to-date — nothing to fetch." : "Sync idle.";
+    if (d.finished_at) {
+      const dt = new Date(d.finished_at);
+      fin.textContent = "Last sync: " + dt.toLocaleTimeString();
+    }
+    if (syncPolling) { clearInterval(syncPolling); syncPolling = null; }
+  }
+}
+
+function pollSyncStatus() {
+  fetch("/settings/sync-status")
+    .then(r => r.json())
+    .then(d => updateSyncUI(d))
+    .catch(() => {});
+}
+
+// Kick off once immediately, then poll every 3s while running
+pollSyncStatus();
+syncPolling = setInterval(() => {
+  fetch("/settings/sync-status")
+    .then(r => r.json())
+    .then(d => {
+      updateSyncUI(d);
+      if (!d.running && syncPolling) { clearInterval(syncPolling); syncPolling = null; }
+    })
+    .catch(() => {});
+}, 3000);
+</script>
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

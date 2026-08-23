@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+{% block title %}Data Scan · {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.scan-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f2040 100%);
+  color: #fff;
+  padding: 2.5rem 0 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.scan-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(47,93,255,.15) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 20%, rgba(139,92,246,.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+.scan-hero h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 800; position: relative; }
+.scan-hero p { position: relative; }
+
+.scan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.scan-card {
+  border-radius: 1rem;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  background: var(--dk-surface, #fff);
+  padding: 1.25rem;
+  transition: border-color .2s, box-shadow .2s;
+  position: relative;
+  overflow: hidden;
+}
+.scan-card:hover { border-color: var(--dk-primary, #2f5dff); box-shadow: 0 4px 20px rgba(47,93,255,.1); }
+
+.scan-card-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .75rem;
+}
+.scan-card-icon {
+  width: 36px; height: 36px;
+  border-radius: .6rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.scan-card-icon.blue   { background: rgba(47,93,255,.12);  color: #2f5dff; }
+.scan-card-icon.green  { background: rgba(22,163,74,.12);  color: #16a34a; }
+.scan-card-icon.orange { background: rgba(249,115,22,.12); color: #f97316; }
+.scan-card-icon.purple { background: rgba(139,92,246,.12); color: #8b5cf6; }
+.scan-card-icon.red    { background: rgba(220,38,38,.1);   color: #dc2626; }
+.scan-card-icon.teal   { background: rgba(20,184,166,.12); color: #14b8a6; }
+.scan-card-icon.pink   { background: rgba(236,72,153,.12); color: #ec4899; }
+.scan-card-icon.yellow { background: rgba(234,179,8,.12);  color: #ca8a04; }
+
+.scan-card-title { font-weight: 700; font-size: .95rem; }
+.scan-card-subtitle { font-size: .72rem; color: var(--bs-secondary); }
+
+.scan-stat-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2.2rem; font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, #2f5dff, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.scan-stat-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--bs-secondary); margin-top: .2rem; }
+
+.scan-compare-section { margin-top: 2rem; }
+
+.scan-table-card {
+  border-radius: 1rem;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  background: var(--dk-surface, #fff);
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+.scan-table-head {
+  background: linear-gradient(90deg, rgba(47,93,255,.06) 0%, rgba(139,92,246,.06) 100%);
+  border-bottom: 1px solid var(--dk-border, #e2e8f0);
+  padding: .85rem 1.25rem;
+  display: flex; align-items: center; gap: .6rem;
+}
+.scan-table-head h6 {
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: .82rem;
+  text-transform: uppercase; letter-spacing: .08em; margin: 0; color: var(--dk-primary, #2f5dff);
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: .4rem;
+  display: inline-block;
+}
+[data-bs-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #263347 50%, #1e293b 75%);
+  background-size: 1000px 100%;
+}
+
+/* Scanner beam animation */
+@keyframes beam-scan {
+  0%   { transform: translateY(-100%); opacity: .8; }
+  100% { transform: translateY(1000%); opacity: 0; }
+}
+.scan-beam {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #2f5dff, #8b5cf6, transparent);
+  animation: beam-scan 2s ease-in-out infinite;
+  border-radius: 999px;
+  opacity: 0;
+}
+.is-scanning .scan-beam { opacity: 1; }
+
+/* Status pill */
+.scan-status-pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .72rem; font-weight: 600; padding: .2rem .65rem;
+  border-radius: 999px;
+}
+.scan-status-pill.ok     { background: rgba(22,163,74,.12); color: #15803d; }
+.scan-status-pill.warn   { background: rgba(234,179,8,.12); color: #b45309; }
+.scan-status-pill.empty  { background: rgba(100,116,139,.1); color: var(--bs-secondary); }
+.scan-status-pill.error  { background: rgba(220,38,38,.1); color: #dc2626; }
+
+/* Progress bar */
+.scan-progress-wrap { height: 4px; background: var(--bs-secondary-bg); border-radius: 2px; margin: .5rem 0 0; overflow: hidden; }
+.scan-progress-bar  { height: 100%; background: linear-gradient(90deg, #2f5dff, #8b5cf6); border-radius: 2px; transition: width .3s ease; }
+
+/* Live activity ticker */
+.scan-log {
+  font-family: 'Courier New', monospace; font-size: .75rem;
+  background: #060d1f; color: #7dd3fc;
+  border-radius: .6rem; padding: .75rem 1rem;
+  height: 140px; overflow-y: auto;
+  border: 1px solid #1e3a5f;
+}
+.scan-log .log-ok   { color: #4ade80; }
+.scan-log .log-warn { color: #fbbf24; }
+.scan-log .log-err  { color: #f87171; }
+
+[data-bs-theme="dark"] .scan-card,
+[data-bs-theme="dark"] .scan-table-card { border-color: #1e2d4a; background: #0f172a; }
+[data-bs-theme="dark"] .scan-table-head { border-color: #1e2d4a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="scan-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-white-50">Home</a></li>
+      <li class="breadcrumb-item active text-white">Data Scan</li>
+    </ol></nav>
+    <div class="d-flex align-items-start gap-3">
+      <div>
+        <h1 class="mb-1"><i class="bi bi-radar me-2 text-primary"></i>Database Deep Scan</h1>
+        <p class="opacity-75 mb-0">Real-time comparison of your local PostgreSQL cache vs live API data across all entities.</p>
+      </div>
+      <div class="ms-auto flex-shrink-0 d-flex gap-2">
+        <button class="btn btn-outline-light btn-sm" id="btnRefreshStats" title="Refresh DB stats">
+          <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" id="btnRunScan">
+          <i class="bi bi-play-fill me-1"></i>Run Full Scan
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+
+  <!-- DB Stats Grid -->
+  <h2 class="h5 mb-3"><i class="bi bi-database me-2 text-primary"></i>Local Database</h2>
+  <div class="scan-grid" id="dbStatsGrid">
+    <div class="scan-card text-center">
+      <div class="skeleton" style="width:80px;height:2.2rem;margin:0 auto .4rem"></div>
+      <div class="skeleton" style="width:60px;height:.7rem;margin:0 auto"></div>
+    </div>
+    <div class="scan-card text-center">
+      <div class="skeleton" style="width:80px;height:2.2rem;margin:0 auto .4rem"></div>
+      <div class="skeleton" style="width:60px;height:.7rem;margin:0 auto"></div>
+    </div>
+    <div class="scan-card text-center">
+      <div class="skeleton" style="width:80px;height:2.2rem;margin:0 auto .4rem"></div>
+      <div class="skeleton" style="width:60px;height:.7rem;margin:0 auto"></div>
+    </div>
+    <div class="scan-card text-center">
+      <div class="skeleton" style="width:80px;height:2.2rem;margin:0 auto .4rem"></div>
+      <div class="skeleton" style="width:60px;height:.7rem;margin:0 auto"></div>
+    </div>
+  </div>
+
+  <!-- Scan Control -->
+  <div class="scan-compare-section">
+    <h2 class="h5 mb-3"><i class="bi bi-arrows-angle-expand me-2 text-primary"></i>DB vs Live API Comparison</h2>
+    <div class="scan-table-card position-relative" id="scanResultCard">
+      <div class="scan-beam" id="scanBeam"></div>
+      <div class="scan-table-head">
+        <h6><i class="bi bi-activity me-1"></i>Scan Results</h6>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <span id="scanStatusBadge" class="scan-status-pill empty"><i class="bi bi-circle me-1"></i>Not started</span>
+        </div>
+      </div>
+      <div class="p-3">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Competitions to scan</label>
+            <select class="form-select form-select-sm" id="scanCompSelect" multiple style="height:100px">
+              {% for c in free_tier_competitions[:12] %}
+              <option value="{{ c.code }}" {% if loop.index <= 5 %}selected{% endif %}>{{ c.name }} ({{ c.code }})</option>
+              {% endfor %}
+            </select>
+            <div class="text-muted" style="font-size:.7rem;margin-top:.3rem">Hold Ctrl/Cmd to select multiple</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Activity log</label>
+            <div class="scan-log" id="scanLog"><span class="text-muted">Awaiting scan…</span></div>
+          </div>
+        </div>
+
+        <!-- Per-competition scan results -->
+        <div id="scanResultRows"></div>
+
+        <!-- Progress -->
+        <div class="scan-progress-wrap" id="scanProgressWrap" style="display:none">
+          <div class="scan-progress-bar" id="scanProgressBar" style="width:0%"></div>
+        </div>
+        <div class="text-muted small mt-1" id="scanProgressLabel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entity deep dive -->
+  <div class="mt-4">
+    <h2 class="h5 mb-3"><i class="bi bi-table me-2 text-primary"></i>Entity Detail</h2>
+    <div class="row g-3">
+
+      <div class="col-12">
+        <div class="scan-table-card">
+          <div class="scan-table-head">
+            <h6><i class="bi bi-shield-fill me-1"></i>Teams</h6>
+            <span class="ms-auto text-muted small" id="teamsCount">—</span>
+          </div>
+          <div class="p-3 table-responsive">
+            <table class="table table-sm table-hover mb-0" id="teamsTable">
+              <thead><tr><th>ID</th><th>Name</th><th>Area</th><th>Crest cached</th><th>Last updated</th></tr></thead>
+              <tbody><tr><td colspan="5" class="text-center text-muted">Click Refresh to load</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="scan-table-card">
+          <div class="scan-table-head">
+            <h6><i class="bi bi-trophy-fill me-1"></i>Competitions</h6>
+            <span class="ms-auto text-muted small" id="compsCount">—</span>
+          </div>
+          <div class="p-3 table-responsive">
+            <table class="table table-sm table-hover mb-0" id="compsTable">
+              <thead><tr><th>Code</th><th>Name</th><th>Area</th><th>Plan</th><th>Last updated</th></tr></thead>
+              <tbody><tr><td colspan="5" class="text-center text-muted">Click Refresh to load</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const STAT_META = [
+    { key: 'teams',             label: 'Teams',           icon: 'bi-shield-fill',        color: 'blue'   },
+    { key: 'competitions',      label: 'Competitions',    icon: 'bi-trophy-fill',        color: 'purple' },
+    { key: 'matches',           label: 'Matches',         icon: 'bi-calendar2-check',    color: 'green'  },
+    { key: 'standings',         label: 'Standings rows',  icon: 'bi-list-ol',            color: 'teal'   },
+    { key: 'scorers',           label: 'Scorers',         icon: 'bi-award-fill',         color: 'orange' },
+    { key: 'match_events',      label: 'Match events',    icon: 'bi-lightning-charge',   color: 'yellow' },
+    { key: 'match_statistics',  label: 'Match stats',     icon: 'bi-bar-chart-fill',     color: 'blue'   },
+    { key: 'match_graphs',      label: 'Momentum graphs', icon: 'bi-activity',           color: 'purple' },
+    { key: 'news_articles',     label: 'News articles',   icon: 'bi-newspaper',          color: 'teal'   },
+    { key: 'player_profiles',   label: 'Player profiles', icon: 'bi-person-badge-fill',  color: 'green'  },
+    { key: 'top_cards',         label: 'Top card holders',icon: 'bi-card-text',          color: 'red'    },
+    { key: 'team_transfers',    label: 'Transfers',       icon: 'bi-arrow-left-right',   color: 'pink'   },
+    { key: 'player_season_stats',label:'Season stats',    icon: 'bi-graph-up-arrow',     color: 'orange' },
+    { key: 'team_form',         label: 'Team form rows',  icon: 'bi-bar-chart-steps',    color: 'teal'   },
+    { key: 'virtual_game_history',label:'VG sessions',   icon: 'bi-controller',         color: 'purple' },
+    { key: 'import_log',        label: 'Import events',   icon: 'bi-journal-text',       color: 'yellow' },
+    { key: 'images',            label: 'Cached images',   icon: 'bi-images',             color: 'green'  },
+  ];
+
+  const grid = document.getElementById('dbStatsGrid');
+  const scanLog = document.getElementById('scanLog');
+  const scanResultRows = document.getElementById('scanResultRows');
+  const scanProgressWrap = document.getElementById('scanProgressWrap');
+  const scanProgressBar = document.getElementById('scanProgressBar');
+  const scanProgressLabel = document.getElementById('scanProgressLabel');
+  const scanStatusBadge = document.getElementById('scanStatusBadge');
+  const scanBeam = document.getElementById('scanBeam').parentElement;
+
+  function log(msg, cls = '') {
+    const line = document.createElement('div');
+    line.className = cls;
+    line.textContent = msg;
+    if (scanLog.firstChild && scanLog.firstChild.classList && scanLog.firstChild.classList.contains('text-muted')) {
+      scanLog.innerHTML = '';
+    }
+    scanLog.appendChild(line);
+    scanLog.scrollTop = scanLog.scrollHeight;
+  }
+
+  function renderStats(stats) {
+    grid.innerHTML = '';
+    STAT_META.forEach(m => {
+      const val = stats[m.key];
+      const card = document.createElement('div');
+      card.className = 'scan-card text-center';
+      card.innerHTML = `
+        <div class="scan-card-header justify-content-center mb-2">
+          <div class="scan-card-icon ${m.color}"><i class="bi ${m.icon}"></i></div>
+        </div>
+        <div class="scan-stat-num">${val >= 0 ? val.toLocaleString() : '—'}</div>
+        <div class="scan-stat-label">${m.label}</div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  async function loadStats() {
+    try {
+      const res = await fetch('/dkapi/scan/db-stats');
+      const stats = await res.json();
+      renderStats(stats);
+      document.getElementById('teamsCount').textContent = (stats.teams || 0).toLocaleString() + ' rows';
+      document.getElementById('compsCount').textContent = (stats.competitions || 0).toLocaleString() + ' rows';
+    } catch(e) {
+      log('[error] Failed to load DB stats: ' + e.message, 'log-err');
+    }
+  }
+
+  async function loadEntityTables() {
+    try {
+      const [teamsRes, compsRes] = await Promise.all([
+        fetch('/dkapi/teams'),
+        fetch('/dkapi/competitions-list'),
+      ]);
+      if (teamsRes.ok) {
+        const { teams } = await teamsRes.json();
+        const tbody = document.querySelector('#teamsTable tbody');
+        if (teams && teams.length) {
+          tbody.innerHTML = teams.slice(0, 20).map(t => `<tr>
+            <td class="text-muted small">${t.id}</td>
+            <td>${t.name || '—'}</td>
+            <td>${t.area_name || '—'}</td>
+            <td>${t.crest_local ? '<span class="scan-status-pill ok"><i class="bi bi-check-circle me-1"></i>Yes</span>' : '<span class="scan-status-pill empty">No</span>'}</td>
+            <td class="text-muted small">${t.updated_at || '—'}</td>
+          </tr>`).join('');
+        }
+      }
+      if (compsRes.ok) {
+        const { competitions } = await compsRes.json();
+        const tbody = document.querySelector('#compsTable tbody');
+        if (competitions && competitions.length) {
+          tbody.innerHTML = competitions.map(c => `<tr>
+            <td><code>${c.code || '—'}</code></td>
+            <td>${c.name || '—'}</td>
+            <td>${c.area_name || '—'}</td>
+            <td>${c.plan || '—'}</td>
+            <td class="text-muted small">${c.updated_at || '—'}</td>
+          </tr>`).join('');
+        }
+      }
+    } catch(e) {
+      log('[warn] Entity tables load error: ' + e.message, 'log-warn');
+    }
+  }
+
+  async function runScan() {
+    const select = document.getElementById('scanCompSelect');
+    const codes = Array.from(select.selectedOptions).map(o => o.value);
+    if (!codes.length) { log('[warn] Select at least one competition', 'log-warn'); return; }
+
+    document.getElementById('btnRunScan').disabled = true;
+    scanBeam.classList.add('is-scanning');
+    scanProgressWrap.style.display = '';
+    scanResultRows.innerHTML = '';
+
+    setScanStatus('scanning', '<i class="bi bi-arrow-repeat spin me-1"></i>Scanning…');
+    log(`[scan] Starting scan for: ${codes.join(', ')}`);
+
+    let done = 0;
+    for (const code of codes) {
+      log(`[scan] Checking ${code}…`);
+      try {
+        const res = await fetch(`/dkapi/scan/compare/standings/${code}`);
+        const data = await res.json();
+        const changes = data.changes || [];
+        const hasChanges = changes.length > 0;
+        const row = document.createElement('div');
+        row.className = 'mb-3';
+        row.innerHTML = `
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="fw-semibold">${code}</span>
+            ${hasChanges
+              ? `<span class="scan-status-pill warn"><i class="bi bi-exclamation-triangle me-1"></i>${changes.length} change(s)</span>`
+              : `<span class="scan-status-pill ok"><i class="bi bi-check-circle me-1"></i>In sync</span>`}
+            ${data.error ? `<span class="scan-status-pill error"><i class="bi bi-x-circle me-1"></i>${data.error}</span>` : ''}
+          </div>
+          ${changes.length ? `<ul class="list-unstyled ms-3 mb-0 small text-muted">${changes.slice(0,5).map(c=>`<li>↗ ${c.team || ''} — ${c.type === 'points_changed' ? `${c.old_pts} → ${c.new_pts} pts (pos ${c.old_pos} → ${c.new_pos})` : c.type}</li>`).join('')}</ul>` : ''}
+        `;
+        scanResultRows.appendChild(row);
+        if (hasChanges) log(`[${code}] ${changes.length} change(s) detected`, 'log-warn');
+        else log(`[${code}] All data in sync ✓`, 'log-ok');
+      } catch(e) {
+        log(`[${code}] Error: ${e.message}`, 'log-err');
+      }
+      done++;
+      scanProgressBar.style.width = Math.round(done / codes.length * 100) + '%';
+      scanProgressLabel.textContent = `${done} / ${codes.length} competitions checked`;
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    log('[scan] Complete.', 'log-ok');
+    setScanStatus('ok', `<i class="bi bi-check-circle me-1"></i>Done — ${done} checked`);
+    scanBeam.classList.remove('is-scanning');
+    document.getElementById('btnRunScan').disabled = false;
+    loadStats();
+  }
+
+  function setScanStatus(type, html) {
+    const cls = { scanning: 'warn', ok: 'ok', error: 'error' }[type] || 'empty';
+    scanStatusBadge.className = `scan-status-pill ${cls}`;
+    scanStatusBadge.innerHTML = html;
+  }
+
+  document.getElementById('btnRefreshStats').addEventListener('click', () => {
+    loadStats();
+    loadEntityTables();
+  });
+  document.getElementById('btnRunScan').addEventListener('click', runScan);
+
+  // Add spin utility
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } } .spin { display:inline-block; animation: spin .8s linear infinite; }';
+  document.head.appendChild(style);
+
+  // Initial load
+  loadStats();
+  loadEntityTables();
+})();
+</script>
+{% endblock %}

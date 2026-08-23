@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{% if person %}{{ person.name }}{% else %}Player{% endif %} · {{ site_name }}{% endblock %}
+{% block content %}
+{% if not person %}
+<section class="container py-5">
+  <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>{{ error or 'Player not found.' }}</div>
+  <a href="{{ url_for('home') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left me-1"></i>Back home</a>
+</section>
+{% else %}
+{% set _team = person.currentTeam or {} %}
+<section class="player-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+      {% if _team.id %}<li class="breadcrumb-item"><a href="{{ url_for('team_detail', team_id=_team.id) }}">{{ _team.shortName or _team.name }}</a></li>{% endif %}
+      <li class="breadcrumb-item active">{{ person.name }}</li>
+    </ol></nav>
+    <div class="row g-4 align-items-center">
+      <div class="col-auto">
+        <div class="player-hero-photo">
+          {% if profile.photo or profile.photo_local %}
+            <img src="{{ img_url(profile.photo_local, profile.photo) }}" alt="{{ person.name }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+            <span class="player-hero-photo-fallback" style="display:none"><i class="bi bi-person-fill"></i></span>
+          {% else %}
+            <span class="player-hero-photo-fallback"><i class="bi bi-person-fill"></i></span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col">
+        {% if person.position %}<div class="text-muted small text-uppercase">{{ person.position }}</div>{% endif %}
+        <h1 class="display-6 fw-bold mb-2">{{ person.name }}</h1>
+        <div class="d-flex flex-wrap gap-3 small text-muted">
+          {% if profile.shirt_number or person.shirtNumber %}<span><i class="bi bi-tag me-1"></i>#{{ profile.shirt_number or person.shirtNumber }}</span>{% endif %}
+          {% if profile.country or person.nationality %}<span><i class="bi bi-flag me-1"></i>{{ profile.country or person.nationality }}</span>{% endif %}
+          {% if age %}<span><i class="bi bi-calendar me-1"></i>{{ age }} years</span>{% endif %}
+          {% if profile.height %}<span><i class="bi bi-arrows-vertical me-1"></i>{{ profile.height }}</span>{% endif %}
+          {% if profile.weight %}<span><i class="bi bi-speedometer me-1"></i>{{ profile.weight }}</span>{% endif %}
+          {% if profile.market_value %}<span><i class="bi bi-cash-coin me-1"></i>{{ profile.market_value }}</span>{% endif %}
+        </div>
+        {% if _team.id %}
+        <div class="mt-3">
+          <a href="{{ url_for('team_detail', team_id=_team.id) }}" class="player-club-link">
+            {% if _team.crest %}<img src="{{ _team.crest }}" alt="" />{% endif %}
+            <span>{{ _team.name or _team.shortName }}</span>
+            <i class="bi bi-arrow-up-right"></i>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card surface-card">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase text-muted">Profile</h2>
+          <dl class="player-profile-dl">
+            {% if person.dateOfBirth %}<dt>Date of birth</dt><dd>{{ person.dateOfBirth }}</dd>{% endif %}
+            {% if profile.country or person.nationality %}<dt>Nationality</dt><dd>{{ profile.country or person.nationality }}</dd>{% endif %}
+            {% if person.position %}<dt>Position</dt><dd>{{ person.position }}</dd>{% endif %}
+            {% if profile.foot %}<dt>Foot</dt><dd>{{ profile.foot }}</dd>{% endif %}
+            {% if profile.height %}<dt>Height</dt><dd>{{ profile.height }}</dd>{% endif %}
+            {% if profile.weight %}<dt>Weight</dt><dd>{{ profile.weight }}</dd>{% endif %}
+            {% if profile.market_value %}<dt>Market value</dt><dd>{{ profile.market_value }}</dd>{% endif %}
+            {% if person.contract and person.contract.start %}<dt>Contract from</dt><dd>{{ person.contract.start }}</dd>{% endif %}
+            {% if person.contract and person.contract.until %}<dt>Contract until</dt><dd>{{ person.contract.until }}</dd>{% endif %}
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      {# ---- Career timeline ---- #}
+      {% set _contract = (_team.contract or {}) %}
+      {% set _contract_start = _contract.start %}
+      {% set _contract_end   = _contract.until %}
+      <div class="dk-career-block mb-4">
+        <h2 class="h6 text-uppercase text-muted mb-3"><i class="bi bi-signpost-2 me-1"></i>Career snapshot</h2>
+        <div class="dk-career-timeline">
+          {# DOB node #}
+          {% if person.dateOfBirth %}
+          <div class="dk-ct-node dk-ct-birth">
+            <div class="dk-ct-dot"></div>
+            <div class="dk-ct-label">Born</div>
+            <div class="dk-ct-val">{{ person.dateOfBirth }}</div>
+          </div>
+          {% endif %}
+
+          {# Contract start #}
+          {% if _contract_start %}
+          <div class="dk-ct-line"></div>
+          <div class="dk-ct-node dk-ct-join">
+            <div class="dk-ct-dot"></div>
+            <div class="dk-ct-label">Joined</div>
+            <div class="dk-ct-val">{{ _contract_start }}</div>
+          </div>
+          {% endif %}
+
+          {# Current club #}
+          {% if _team.id %}
+          <div class="dk-ct-line dk-ct-line-active"></div>
+          <div class="dk-ct-node dk-ct-current">
+            <div class="dk-ct-dot dk-ct-dot-active">
+              {% if _team.crest %}<img src="{{ _team.crest }}" alt="" onerror="this.style.display='none'" />{% endif %}
+            </div>
+            <div class="dk-ct-label">Current club</div>
+            <div class="dk-ct-val">
+              <a href="{{ url_for('team_detail', team_id=_team.id) }}" class="text-decoration-none fw-semibold">{{ _team.shortName or _team.name }}</a>
+            </div>
+          </div>
+          {% endif %}
+
+          {# Contract end #}
+          {% if _contract_end %}
+          <div class="dk-ct-line {% if _contract_end > '2025' %}dk-ct-line-future{% endif %}"></div>
+          <div class="dk-ct-node dk-ct-end">
+            <div class="dk-ct-dot dk-ct-dot-future"></div>
+            <div class="dk-ct-label">Contract until</div>
+            <div class="dk-ct-val">{{ _contract_end }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+        {# Running competitions for this player #}
+        {% if _team.runningCompetitions %}
+        <div class="dk-career-comps mt-3">
+          {% for c in _team.runningCompetitions %}
+          <a href="{{ url_for('competition_detail', code=c.code) }}" class="dk-career-comp-chip" title="{{ c.name }}">
+            {% if c.emblem %}<img src="{{ c.emblem }}" alt="" onerror="this.style.display='none'" />{% endif %}
+            <span>{{ c.name }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      {# ---- Season stats (footapi7) ---- #}
+      {% if person.id %}
+      {% set player_id = person.id %}
+      {% set current_year = now_year %}
+      {% include 'player_stats_partial.html' %}
+      {% endif %}
+
+      <h2 class="h5 mb-3 mt-4"><i class="bi bi-newspaper text-primary me-2"></i>Latest news about {{ person.name }}</h2>
+      {% if news %}
+        <div class="row g-3">
+          {% for n in news %}
+          <div class="col-12 col-md-6">{% include "_news_card.html" %}</div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary"><i class="bi bi-info-circle me-1"></i>No recent news found for this player.</div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

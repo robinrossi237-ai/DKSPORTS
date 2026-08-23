@@ -1,0 +1,580 @@
+{% extends "base.html" %}
+{% block title %}{{ match.homeTeam.name }} vs {{ match.awayTeam.name }} · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>{% if match.competition %}<li class="breadcrumb-item"><a href="{{ url_for('competition_detail', code=match.competition.code) }}">{{ match.competition.name }}</a></li>{% endif %}<li class="breadcrumb-item active">Match</li></ol></nav>
+  <div class="match-detail-card">
+    <div class="text-center mb-3">
+      {% if match.competition %}
+        <div class="text-muted small">{{ match.competition.name }}{% if match.matchday %} · Matchday {{ match.matchday }}{% endif %}</div>
+      {% endif %}
+      <div class="text-muted small">{{ match.utcDate|fmt_datetime }}</div>
+      {% if match.venue %}<div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ match.venue }}</div>{% endif %}
+    </div>
+    <div class="row align-items-center text-center">
+      <div class="col-5 col-md-4">
+        <a href="{{ url_for('team_detail', team_id=match.homeTeam.id) }}" class="text-decoration-none">
+          <div class="match-detail-crest"><img src="{{ match.homeTeam.crest }}" alt="" onerror="this.style.display='none'" /></div>
+          <div class="fw-semibold mt-2">{{ match.homeTeam.name }}</div>
+        </a>
+      </div>
+      <div class="col-2 col-md-4">
+        {% if match.status == 'FINISHED' %}
+          <div class="display-4 fw-bold">{{ match.score.fullTime.home }}<span class="text-muted">:</span>{{ match.score.fullTime.away }}</div>
+          <div class="text-muted small mt-1">Full Time</div>
+          {% if match.score.halfTime %}
+            <div class="text-muted small">HT: {{ match.score.halfTime.home }}-{{ match.score.halfTime.away }}</div>
+          {% endif %}
+        {% elif match.status in ('IN_PLAY', 'PAUSED') %}
+          <span class="badge bg-danger blink mb-2">LIVE</span>
+          <div class="display-4 fw-bold">{{ match.score.fullTime.home or 0 }}<span class="text-muted">:</span>{{ match.score.fullTime.away or 0 }}</div>
+        {% else %}
+          <div class="display-6 text-muted">vs</div>
+          <div class="text-muted small mt-1">{{ match.status|replace('_',' ')|title }}</div>
+        {% endif %}
+      </div>
+      <div class="col-5 col-md-4">
+        <a href="{{ url_for('team_detail', team_id=match.awayTeam.id) }}" class="text-decoration-none">
+          <div class="match-detail-crest"><img src="{{ match.awayTeam.crest }}" alt="" onerror="this.style.display='none'" /></div>
+          <div class="fw-semibold mt-2">{{ match.awayTeam.name }}</div>
+        </a>
+      </div>
+    </div>
+
+    {% if odds and (odds.home or odds.draw or odds.away) %}
+    <div class="match-detail-odds">
+      <div class="fx-odd"><span class="fx-odd-label">1</span><span class="fx-odd-val">{% if odds.home %}{{ '%.2f'|format(odds.home) }}{% else %}—{% endif %}</span></div>
+      <div class="fx-odd"><span class="fx-odd-label">X</span><span class="fx-odd-val">{% if odds.draw %}{{ '%.2f'|format(odds.draw) }}{% else %}—{% endif %}</span></div>
+      <div class="fx-odd"><span class="fx-odd-label">2</span><span class="fx-odd-val">{% if odds.away %}{{ '%.2f'|format(odds.away) }}{% else %}—{% endif %}</span></div>
+    </div>
+    <div class="text-center text-muted small mt-2">Snapshot best price · via The Odds API{% if odds.bookmaker %} · at {{ odds.bookmaker }}{% endif %}</div>
+    {% endif %}
+  </div>
+
+  {% if markets and markets.available_markets %}
+  {% set tabs = markets.available_markets %}
+  <div class="dk-bet-panel mt-4" data-bet-panel>
+    <div class="dk-bet-head">
+      <div>
+        <h3 class="h5 mb-1"><i class="bi bi-grid-3x3-gap-fill me-2 text-accent"></i>Betting markets</h3>
+        <div class="text-muted small">Live across {{ markets.bookmakers|length }} bookmaker{{ '' if markets.bookmakers|length == 1 else 's' }} · {{ tabs|length }} market{{ '' if tabs|length == 1 else 's' }}</div>
+      </div>
+      <div class="dk-bet-filter">
+        <label class="small text-muted me-2 mb-0" for="dkBetBookmaker">Show:</label>
+        <select class="form-select form-select-sm" id="dkBetBookmaker" data-bet-filter>
+          <option value="__best__" selected>Best price (across all)</option>
+          {% for bk in markets.bookmakers %}
+            <option value="{{ bk }}">{{ bk }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <ul class="nav nav-pills dk-bet-tabs" role="tablist">
+      {% for key in tabs %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ key }}" data-bs-toggle="pill" data-bs-target="#pane-{{ key }}" type="button" role="tab">
+            {{ markets.labels[key] }}
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <div class="tab-content dk-bet-content">
+
+      {# ---- Match result (h2h) ---- #}
+      {% if 'h2h' in tabs %}
+      <div class="tab-pane fade {% if tabs[0] == 'h2h' %}show active{% endif %}" id="pane-h2h" role="tabpanel">
+        <div class="dk-bet-row" data-market="h2h">
+          <div class="dk-bet-cell" data-outcome="home">
+            <div class="dk-bet-label">Home win <span class="text-muted">({{ match.homeTeam.shortName or match.homeTeam.name }})</span></div>
+            <div class="dk-bet-price"
+                 data-best="{{ markets.h2h.best.home or '' }}"
+                 data-best-book="{{ markets.h2h.best.books.home or '' }}"
+                 data-rows='{{ markets.h2h.rows|tojson }}'>
+              {% if markets.h2h.best.home %}{{ '%.2f'|format(markets.h2h.best.home) }}{% else %}—{% endif %}
+            </div>
+            <div class="dk-bet-bk small text-muted">{% if markets.h2h.best.books.home %}@ {{ markets.h2h.best.books.home }}{% endif %}</div>
+          </div>
+          <div class="dk-bet-cell" data-outcome="draw">
+            <div class="dk-bet-label">Draw</div>
+            <div class="dk-bet-price"
+                 data-best="{{ markets.h2h.best.draw or '' }}"
+                 data-best-book="{{ markets.h2h.best.books.draw or '' }}"
+                 data-rows='{{ markets.h2h.rows|tojson }}'>
+              {% if markets.h2h.best.draw %}{{ '%.2f'|format(markets.h2h.best.draw) }}{% else %}—{% endif %}
+            </div>
+            <div class="dk-bet-bk small text-muted">{% if markets.h2h.best.books.draw %}@ {{ markets.h2h.best.books.draw }}{% endif %}</div>
+          </div>
+          <div class="dk-bet-cell" data-outcome="away">
+            <div class="dk-bet-label">Away win <span class="text-muted">({{ match.awayTeam.shortName or match.awayTeam.name }})</span></div>
+            <div class="dk-bet-price"
+                 data-best="{{ markets.h2h.best.away or '' }}"
+                 data-best-book="{{ markets.h2h.best.books.away or '' }}"
+                 data-rows='{{ markets.h2h.rows|tojson }}'>
+              {% if markets.h2h.best.away %}{{ '%.2f'|format(markets.h2h.best.away) }}{% else %}—{% endif %}
+            </div>
+            <div class="dk-bet-bk small text-muted">{% if markets.h2h.best.books.away %}@ {{ markets.h2h.best.books.away }}{% endif %}</div>
+          </div>
+        </div>
+        <details class="dk-bet-all">
+          <summary>Compare all bookmakers ({{ markets.h2h.rows|length }})</summary>
+          <div class="table-responsive">
+            <table class="table table-sm dk-bet-table">
+              <thead><tr><th>Bookmaker</th><th class="text-end">1</th><th class="text-end">X</th><th class="text-end">2</th></tr></thead>
+              <tbody>
+                {% for r in markets.h2h.rows %}
+                <tr>
+                  <td>{{ r.bookmaker }}</td>
+                  <td class="text-end{% if r.home and r.home == markets.h2h.best.home %} dk-bet-best{% endif %}">{% if r.home %}{{ '%.2f'|format(r.home) }}{% else %}—{% endif %}</td>
+                  <td class="text-end{% if r.draw and r.draw == markets.h2h.best.draw %} dk-bet-best{% endif %}">{% if r.draw %}{{ '%.2f'|format(r.draw) }}{% else %}—{% endif %}</td>
+                  <td class="text-end{% if r.away and r.away == markets.h2h.best.away %} dk-bet-best{% endif %}">{% if r.away %}{{ '%.2f'|format(r.away) }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+      {% endif %}
+
+      {# ---- Goals over/under ---- #}
+      {% if 'totals' in tabs %}
+      <div class="tab-pane fade {% if tabs[0] == 'totals' %}show active{% endif %}" id="pane-totals" role="tabpanel">
+        {% set lines = markets.totals.lines %}
+        {% if lines|length > 1 %}
+        <div class="dk-bet-linepick">
+          <label class="small text-muted me-2" for="dkTotalsLine">Line:</label>
+          <select class="form-select form-select-sm w-auto d-inline-block" id="dkTotalsLine" data-line-pick="totals">
+            {% for ln in lines %}
+              <option value="{{ loop.index0 }}"{% if ln.point == 2.5 %} selected{% endif %}>Over/Under {{ ln.point }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% for ln in lines %}
+        <div class="dk-bet-linebox" data-line-box="totals" data-line-idx="{{ loop.index0 }}"
+             {% if loop.length > 1 and ln.point != 2.5 %}hidden{% endif %}>
+          <div class="dk-bet-row" data-market="totals">
+            <div class="dk-bet-cell" data-outcome="over">
+              <div class="dk-bet-label">Over {{ ln.point }} goals</div>
+              <div class="dk-bet-price"
+                   data-best="{{ ln.best.over or '' }}"
+                   data-best-book="{{ ln.best.books.over or '' }}"
+                   data-rows='{{ ln.rows|tojson }}'
+                   data-key="over">
+                {% if ln.best.over %}{{ '%.2f'|format(ln.best.over) }}{% else %}—{% endif %}
+              </div>
+              <div class="dk-bet-bk small text-muted">{% if ln.best.books.over %}@ {{ ln.best.books.over }}{% endif %}</div>
+            </div>
+            <div class="dk-bet-cell" data-outcome="under">
+              <div class="dk-bet-label">Under {{ ln.point }} goals</div>
+              <div class="dk-bet-price"
+                   data-best="{{ ln.best.under or '' }}"
+                   data-best-book="{{ ln.best.books.under or '' }}"
+                   data-rows='{{ ln.rows|tojson }}'
+                   data-key="under">
+                {% if ln.best.under %}{{ '%.2f'|format(ln.best.under) }}{% else %}—{% endif %}
+              </div>
+              <div class="dk-bet-bk small text-muted">{% if ln.best.books.under %}@ {{ ln.best.books.under }}{% endif %}</div>
+            </div>
+          </div>
+          <details class="dk-bet-all">
+            <summary>Compare all bookmakers ({{ ln.rows|length }})</summary>
+            <div class="table-responsive">
+              <table class="table table-sm dk-bet-table">
+                <thead><tr><th>Bookmaker</th><th class="text-end">Over {{ ln.point }}</th><th class="text-end">Under {{ ln.point }}</th></tr></thead>
+                <tbody>
+                  {% for r in ln.rows %}
+                  <tr>
+                    <td>{{ r.bookmaker }}</td>
+                    <td class="text-end{% if r.over and r.over == ln.best.over %} dk-bet-best{% endif %}">{% if r.over %}{{ '%.2f'|format(r.over) }}{% else %}—{% endif %}</td>
+                    <td class="text-end{% if r.under and r.under == ln.best.under %} dk-bet-best{% endif %}">{% if r.under %}{{ '%.2f'|format(r.under) }}{% else %}—{% endif %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# ---- Asian handicap ---- #}
+      {% if 'spreads' in tabs %}
+      <div class="tab-pane fade {% if tabs[0] == 'spreads' %}show active{% endif %}" id="pane-spreads" role="tabpanel">
+        {% set lines = markets.spreads.lines %}
+        {% if lines|length > 1 %}
+        <div class="dk-bet-linepick">
+          <label class="small text-muted me-2" for="dkSpreadsLine">Handicap:</label>
+          <select class="form-select form-select-sm w-auto d-inline-block" id="dkSpreadsLine" data-line-pick="spreads">
+            {% for ln in lines %}
+              <option value="{{ loop.index0 }}"{% if ln.point == 0 %} selected{% endif %}>{{ match.homeTeam.shortName or match.homeTeam.name }} {{ '+' if ln.point > 0 else '' }}{{ ln.point }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% for ln in lines %}
+        <div class="dk-bet-linebox" data-line-box="spreads" data-line-idx="{{ loop.index0 }}"
+             {% if loop.length > 1 and ln.point != 0 %}hidden{% endif %}>
+          <div class="dk-bet-row" data-market="spreads">
+            <div class="dk-bet-cell" data-outcome="home">
+              <div class="dk-bet-label">{{ match.homeTeam.shortName or match.homeTeam.name }} {{ '+' if ln.point > 0 else '' }}{{ ln.point }}</div>
+              <div class="dk-bet-price"
+                   data-best="{{ ln.best.home or '' }}"
+                   data-best-book="{{ ln.best.books.home or '' }}"
+                   data-rows='{{ ln.rows|tojson }}'
+                   data-key="home">
+                {% if ln.best.home %}{{ '%.2f'|format(ln.best.home) }}{% else %}—{% endif %}
+              </div>
+              <div class="dk-bet-bk small text-muted">{% if ln.best.books.home %}@ {{ ln.best.books.home }}{% endif %}</div>
+            </div>
+            <div class="dk-bet-cell" data-outcome="away">
+              <div class="dk-bet-label">{{ match.awayTeam.shortName or match.awayTeam.name }} {{ '+' if ln.point < 0 else '-' if ln.point > 0 else '' }}{{ (-ln.point) if ln.point != 0 else 0 }}</div>
+              <div class="dk-bet-price"
+                   data-best="{{ ln.best.away or '' }}"
+                   data-best-book="{{ ln.best.books.away or '' }}"
+                   data-rows='{{ ln.rows|tojson }}'
+                   data-key="away">
+                {% if ln.best.away %}{{ '%.2f'|format(ln.best.away) }}{% else %}—{% endif %}
+              </div>
+              <div class="dk-bet-bk small text-muted">{% if ln.best.books.away %}@ {{ ln.best.books.away }}{% endif %}</div>
+            </div>
+          </div>
+          <details class="dk-bet-all">
+            <summary>Compare all bookmakers ({{ ln.rows|length }})</summary>
+            <div class="table-responsive">
+              <table class="table table-sm dk-bet-table">
+                <thead><tr><th>Bookmaker</th><th class="text-end">Home</th><th class="text-end">Away</th></tr></thead>
+                <tbody>
+                  {% for r in ln.rows %}
+                  <tr>
+                    <td>{{ r.bookmaker }}</td>
+                    <td class="text-end{% if r.home and r.home == ln.best.home %} dk-bet-best{% endif %}">{% if r.home %}{{ '%.2f'|format(r.home) }}{% else %}—{% endif %}</td>
+                    <td class="text-end{% if r.away and r.away == ln.best.away %} dk-bet-best{% endif %}">{% if r.away %}{{ '%.2f'|format(r.away) }}{% else %}—{% endif %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# ---- Both teams to score ---- #}
+      {% if 'btts' in tabs %}
+      <div class="tab-pane fade {% if tabs[0] == 'btts' %}show active{% endif %}" id="pane-btts" role="tabpanel">
+        <div class="dk-bet-row" data-market="btts">
+          <div class="dk-bet-cell" data-outcome="yes">
+            <div class="dk-bet-label">Both teams to score · Yes</div>
+            <div class="dk-bet-price"
+                 data-best="{{ markets.btts.best.yes or '' }}"
+                 data-best-book="{{ markets.btts.best.books.yes or '' }}"
+                 data-rows='{{ markets.btts.rows|tojson }}'
+                 data-key="yes">
+              {% if markets.btts.best.yes %}{{ '%.2f'|format(markets.btts.best.yes) }}{% else %}—{% endif %}
+            </div>
+            <div class="dk-bet-bk small text-muted">{% if markets.btts.best.books.yes %}@ {{ markets.btts.best.books.yes }}{% endif %}</div>
+          </div>
+          <div class="dk-bet-cell" data-outcome="no">
+            <div class="dk-bet-label">Both teams to score · No</div>
+            <div class="dk-bet-price"
+                 data-best="{{ markets.btts.best.no or '' }}"
+                 data-best-book="{{ markets.btts.best.books.no or '' }}"
+                 data-rows='{{ markets.btts.rows|tojson }}'
+                 data-key="no">
+              {% if markets.btts.best.no %}{{ '%.2f'|format(markets.btts.best.no) }}{% else %}—{% endif %}
+            </div>
+            <div class="dk-bet-bk small text-muted">{% if markets.btts.best.books.no %}@ {{ markets.btts.best.books.no }}{% endif %}</div>
+          </div>
+        </div>
+        <details class="dk-bet-all">
+          <summary>Compare all bookmakers ({{ markets.btts.rows|length }})</summary>
+          <div class="table-responsive">
+            <table class="table table-sm dk-bet-table">
+              <thead><tr><th>Bookmaker</th><th class="text-end">Yes</th><th class="text-end">No</th></tr></thead>
+              <tbody>
+                {% for r in markets.btts.rows %}
+                <tr>
+                  <td>{{ r.bookmaker }}</td>
+                  <td class="text-end{% if r.yes and r.yes == markets.btts.best.yes %} dk-bet-best{% endif %}">{% if r.yes %}{{ '%.2f'|format(r.yes) }}{% else %}—{% endif %}</td>
+                  <td class="text-end{% if r.no and r.no == markets.btts.best.no %} dk-bet-best{% endif %}">{% if r.no %}{{ '%.2f'|format(r.no) }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+      {% endif %}
+
+    </div>
+    <div class="text-muted small mt-2 text-center">
+      <i class="bi bi-info-circle me-1"></i>Decimal odds · best price across European &amp; UK books · refreshed every 10 min via The Odds API
+    </div>
+  </div>
+  {% elif odds %}
+  <div class="alert alert-light border mt-4 small text-muted">Deeper betting markets unlock once the bookmakers post pre-match prices for this fixture.</div>
+  {% endif %}
+
+  {# ---------- Head-to-Head + lineups ---------- #}
+  <div class="dk-h2h-block mt-4">
+    <div class="d-flex align-items-end justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h3 class="h5 mb-1"><i class="bi bi-bar-chart-steps me-2 text-accent"></i>Head-to-head</h3>
+        <div class="text-muted small">Last {{ h2h_rows|length or 0 }} meeting{{ '' if (h2h_rows|length or 0) == 1 else 's' }} between {{ match.homeTeam.shortName or match.homeTeam.name }} and {{ match.awayTeam.shortName or match.awayTeam.name }}.</div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-primary dk-share-btn"
+        data-dk-share data-dk-share-title="{{ match.homeTeam.name }} vs {{ match.awayTeam.name }}"
+        data-dk-share-text="Match preview, odds, H2H and more on DKSPORTS.">
+        <i class="bi bi-share me-1"></i>Share match
+      </button>
+    </div>
+
+    {% if h2h_rows %}
+    <div class="dk-h2h-tally">
+      <div class="dk-h2h-cell h2h-side-home">
+        <div class="dk-h2h-num">{{ h2h_tally.home }}</div>
+        <div class="dk-h2h-side text-truncate">{{ match.homeTeam.shortName or match.homeTeam.name }} wins</div>
+      </div>
+      <div class="dk-h2h-cell h2h-side-draw">
+        <div class="dk-h2h-num">{{ h2h_tally.draw }}</div>
+        <div class="dk-h2h-side">Draws</div>
+      </div>
+      <div class="dk-h2h-cell h2h-side-away">
+        <div class="dk-h2h-num">{{ h2h_tally.away }}</div>
+        <div class="dk-h2h-side text-truncate">{{ match.awayTeam.shortName or match.awayTeam.name }} wins</div>
+      </div>
+    </div>
+
+    <div class="dk-h2h-list mt-3">
+      {% for row in h2h_rows %}
+      {% set is_home_win = row.winner == 'H' %}
+      {% set is_away_win = row.winner == 'A' %}
+      <div class="dk-h2h-row">
+        <div class="dk-h2h-date small text-muted">{{ row.date or '' }}</div>
+        <div class="dk-h2h-teams">
+          <span class="dk-h2h-team {% if is_home_win %}fw-bold{% endif %}">{{ row.home }}</span>
+          <span class="dk-h2h-score">{{ row.score_home }} <span class="text-muted">–</span> {{ row.score_away }}</span>
+          <span class="dk-h2h-team {% if is_away_win %}fw-bold{% endif %}">{{ row.away }}</span>
+        </div>
+        <div class="dk-h2h-result">
+          {% if row.winner == 'H' %}<span class="form-pill form-w" title="Home win">H</span>
+          {% elif row.winner == 'A' %}<span class="form-pill form-l" title="Away win">A</span>
+          {% else %}<span class="form-pill form-d" title="Draw">D</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-light border small text-muted mb-0">No previous meetings on record between these clubs.</div>
+    {% endif %}
+  </div>
+
+  {# ---------- Lineups (graceful fallback) ---------- #}
+  <div class="dk-lineups-block mt-4">
+    <h3 class="h5 mb-3"><i class="bi bi-people-fill me-2 text-accent"></i>Lineups</h3>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="dk-lineup-card">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img src="{{ match.homeTeam.crest }}" alt="" class="dk-lineup-crest" onerror="this.style.display='none'" />
+            <strong>{{ match.homeTeam.name }}</strong>
+          </div>
+          <div class="text-muted small">
+            {% if match.status in ('SCHEDULED', 'TIMED') %}
+              Confirmed XI is published by clubs ~1 hour before kickoff. <a href="{{ url_for('team_detail', team_id=match.homeTeam.id) }}">View squad &rsaquo;</a>
+            {% else %}
+              Lineup data not provided for past matches. <a href="{{ url_for('team_detail', team_id=match.homeTeam.id) }}">View squad &rsaquo;</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="dk-lineup-card">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img src="{{ match.awayTeam.crest }}" alt="" class="dk-lineup-crest" onerror="this.style.display='none'" />
+            <strong>{{ match.awayTeam.name }}</strong>
+          </div>
+          <div class="text-muted small">
+            {% if match.status in ('SCHEDULED', 'TIMED') %}
+              Confirmed XI is published by clubs ~1 hour before kickoff. <a href="{{ url_for('team_detail', team_id=match.awayTeam.id) }}">View squad &rsaquo;</a>
+            {% else %}
+              Lineup data not provided for past matches. <a href="{{ url_for('team_detail', team_id=match.awayTeam.id) }}">View squad &rsaquo;</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if match.referees or match.score.fullTime or match.score.halfTime %}
+  <div class="match-detail-card mt-4">
+    <div class="row g-3">
+      {% if match.referees %}
+      <div class="col-md-6">
+        <div class="text-muted small text-uppercase mb-2">Officials</div>
+        {% for r in match.referees %}
+          <div class="small"><i class="bi bi-person-badge me-1"></i>{{ r.name }} <span class="text-muted">— {{ r.role|replace('_',' ')|title }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="col-md-6">
+        <div class="text-muted small text-uppercase mb-2">Score Breakdown</div>
+        {% if match.score.fullTime %}<div class="small">Full Time: {{ match.score.fullTime.home }}-{{ match.score.fullTime.away }}</div>{% endif %}
+        {% if match.score.halfTime %}<div class="small">Half Time: {{ match.score.halfTime.home }}-{{ match.score.halfTime.away }}</div>{% endif %}
+        {% if match.score.regularTime %}<div class="small">Regular: {{ match.score.regularTime.home }}-{{ match.score.regularTime.away }}</div>{% endif %}
+        {% if match.score.extraTime %}<div class="small">Extra Time: {{ match.score.extraTime.home }}-{{ match.score.extraTime.away }}</div>{% endif %}
+        {% if match.score.penalties %}<div class="small">Penalties: {{ match.score.penalties.home }}-{{ match.score.penalties.away }}</div>{% endif %}
+        {% if match.score.winner %}<div class="small mt-1"><strong>Winner:</strong> {{ match.score.winner|replace('_',' ')|title }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ===== Momentum Graph (footapi7) ===== #}
+  {% if match.status == 'FINISHED' %}
+  <div class="match-detail-card mt-4" id="momentum-graph-section">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <h3 class="h5 mb-0"><i class="bi bi-activity me-2 text-primary"></i>Match Momentum</h3>
+      {% if has_shotmap %}
+      <button class="btn btn-sm btn-outline-primary ms-auto rounded-pill" id="loadMomentumBtn">
+        <i class="bi bi-cloud-download me-1"></i>Load Graph
+      </button>
+      {% else %}
+      <span class="text-muted small ms-auto">Requires footapi7 key — <a href="{{ url_for('settings_page') }}">Settings</a></span>
+      {% endif %}
+    </div>
+    <div id="momentumGraphContainer">
+      {% if has_shotmap %}
+      <div class="text-muted small">Visualise which team dominated possession and pressure each minute.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% if has_shotmap %}
+  <script>
+  (function(){
+    const matchId = {{ match.id | tojson }};
+    const homeTeam = {{ match.homeTeam.name | tojson }};
+    const awayTeam = {{ match.awayTeam.name | tojson }};
+    document.getElementById('loadMomentumBtn').addEventListener('click', async function(){
+      this.disabled = true;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading…';
+      const container = document.getElementById('momentumGraphContainer');
+      try {
+        const res = await fetch(`/api/match/${matchId}/graph`);
+        const data = await res.json();
+        if (data.error) {
+          container.innerHTML = `<div class="alert alert-warning small">${data.error}</div>`;
+          this.disabled = false; this.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Retry';
+          return;
+        }
+        const pts = data.momentum || [];
+        if (!pts.length) {
+          container.innerHTML = '<div class="text-muted small">No graph data available for this match.</div>';
+          return;
+        }
+        this.style.display = 'none';
+        renderMomentumChart(container, pts, homeTeam, awayTeam);
+      } catch(e) {
+        container.innerHTML = `<div class="alert alert-danger small">Failed to load: ${e.message}</div>`;
+        this.disabled = false; this.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Retry';
+      }
+    });
+
+    function renderMomentumChart(container, pts, home, away) {
+      const W = container.clientWidth || 700;
+      const H = 120;
+      const PAD = 8;
+      const mid = H / 2;
+      const maxVal = Math.max(...pts.map(p => Math.max(Math.abs(p.home || 0), Math.abs(p.away || 0))), 1);
+      const xScale = (i) => PAD + (i / (pts.length - 1)) * (W - PAD * 2);
+      const yScale = (v) => mid - (v / maxVal) * (mid - PAD);
+
+      const homePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(i).toFixed(1)},${yScale(p.home || 0).toFixed(1)}`).join(' ');
+      const awayPath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(i).toFixed(1)},${yScale(-(p.away || 0)).toFixed(1)}`).join(' ');
+
+      container.innerHTML = `
+        <div class="d-flex justify-content-between small text-muted mb-1 px-1">
+          <span><i class="bi bi-circle-fill me-1" style="color:#2f5dff"></i>${home}</span>
+          <span>${away}<i class="bi bi-circle-fill ms-1" style="color:#f97316"></i></span>
+        </div>
+        <svg width="100%" viewBox="0 0 ${W} ${H}" style="border-radius:.5rem;overflow:hidden" preserveAspectRatio="none">
+          <rect width="${W}" height="${H}" fill="var(--bs-body-bg, #fff)" opacity=".8"/>
+          <line x1="${PAD}" y1="${mid}" x2="${W - PAD}" y2="${mid}" stroke="var(--bs-secondary-color, #94a3b8)" stroke-width="1" stroke-dasharray="4"/>
+          <!-- Home upper half -->
+          <path d="${homePath} L${xScale(pts.length-1)},${mid} L${xScale(0)},${mid} Z" fill="#2f5dff" opacity=".18"/>
+          <path d="${homePath}" fill="none" stroke="#2f5dff" stroke-width="2.5" stroke-linejoin="round"/>
+          <!-- Away lower half -->
+          <path d="${awayPath} L${xScale(pts.length-1)},${mid} L${xScale(0)},${mid} Z" fill="#f97316" opacity=".18"/>
+          <path d="${awayPath}" fill="none" stroke="#f97316" stroke-width="2.5" stroke-linejoin="round"/>
+          <!-- Minute markers -->
+          ${[0, 45, 90].map(m => {
+            const idx = pts.findIndex(p => (p.minute || 0) >= m);
+            if (idx < 0) return '';
+            const x = xScale(idx).toFixed(1);
+            return `<line x1="${x}" y1="${PAD}" x2="${x}" y2="${H - PAD}" stroke="var(--bs-secondary-color,#94a3b8)" stroke-width="1" stroke-dasharray="2"/><text x="${x}" y="${H - 2}" text-anchor="middle" font-size="8" fill="var(--bs-secondary-color,#94a3b8)">${m}'</text>`;
+          }).join('')}
+        </svg>
+        <div class="text-muted" style="font-size:.68rem;margin-top:.3rem">Graph shows momentum/pressure per minute · ${pts.length} data points</div>
+      `;
+    }
+  })();
+  </script>
+  {% endif %}
+  {% endif %}
+
+  {# ===== Shot Map (footapi7) ===== #}
+  {% if shotmap_data %}
+    {% include 'shotmap_partial.html' %}
+  {% elif has_shotmap and match.status == 'FINISHED' %}
+  <div class="match-detail-card mt-4" id="shotmap-lazy-section">
+    <h3 class="h5 mb-2"><i class="bi bi-crosshair2 me-2 text-primary"></i>Shot Map</h3>
+    <p class="text-muted small mb-2">Tap below to load shot-by-shot data for this match.</p>
+    <button class="btn btn-outline-primary btn-sm rounded-pill" id="load-shotmap-btn">
+      <i class="bi bi-cloud-download me-1"></i>Load Shot Map
+    </button>
+    <div id="shotmap-lazy-container" class="mt-3"></div>
+    <script>
+    document.getElementById("load-shotmap-btn").addEventListener("click", function(){
+      this.disabled = true;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading…';
+      fetch("/api/match/{{ match.id }}/shotmap")
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            document.getElementById("shotmap-lazy-container").innerHTML =
+              '<div class="alert alert-warning small">' + data.error + '</div>';
+            return;
+          }
+          document.getElementById("load-shotmap-btn").style.display = "none";
+          // Redirect to reload page with shotmap — or render inline via JS
+          window.location.href = window.location.href + (window.location.search ? "&" : "?") + "load_shotmap=1";
+        })
+        .catch(() => {
+          document.getElementById("shotmap-lazy-container").innerHTML =
+            '<div class="alert alert-danger small">Failed to load shot map. Check your API key in Settings.</div>';
+          this.disabled = false;
+          this.textContent = "Retry";
+        });
+    });
+    </script>
+  </div>
+  {% elif not has_shotmap and match.status == 'FINISHED' %}
+  <div class="match-detail-card mt-4">
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-crosshair2 fs-4 text-muted"></i>
+      <div>
+        <div class="fw-semibold small">Shot Map not configured</div>
+        <div class="text-muted small">Add your <code>RAPIDAPI_FOOTAPI7_KEY</code> in <a href="{{ url_for('settings_page') }}">Settings</a> to unlock shot maps, match statistics, and lineups for finished matches.</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</section>
+{% endblock %}

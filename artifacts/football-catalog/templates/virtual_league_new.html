@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}Create {{ league.name }} Season - {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.vln-shell {
+  --vln-primary: {{ league.color }};
+  --vln-accent: {{ league.accent }};
+}
+.vln-hero {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  padding: 2.6rem 0 2.2rem;
+  background: linear-gradient(135deg, var(--vln-primary), var(--vln-accent));
+}
+.vln-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255,255,255,0.18), transparent 40%),
+    radial-gradient(circle at 85% 15%, rgba(255,255,255,0.12), transparent 36%);
+  pointer-events: none;
+}
+.vln-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.vln-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.vln-card,
+.vln-sidecard {
+  background: var(--dk-surface, #fff);
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: 1.25rem;
+  box-shadow: var(--dk-shadow-sm);
+}
+[data-bs-theme="dark"] .vln-card,
+[data-bs-theme="dark"] .vln-sidecard {
+  background: #0f1629;
+  border-color: #1e2d4a;
+}
+.vln-card {
+  margin-top: -2.2rem;
+  position: relative;
+  z-index: 2;
+}
+.vln-form-header {
+  padding: 1.25rem 1.4rem 1rem;
+  border-bottom: 1px solid var(--dk-border, #e2e8f0);
+}
+.vln-form-body {
+  padding: 1.35rem 1.4rem 1.4rem;
+}
+.vln-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 1rem;
+  padding: 0.45rem;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.24);
+}
+.vln-input {
+  border-radius: 0.95rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--dk-border, #d9e2ec);
+}
+.vln-input:focus {
+  border-color: var(--vln-primary);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--vln-primary) 16%, transparent);
+}
+.vln-btn-primary {
+  background: linear-gradient(135deg, var(--vln-primary), var(--vln-accent));
+  border: none;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.8rem 1.4rem;
+  font-weight: 700;
+}
+.vln-btn-ghost {
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+}
+.vln-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+.vln-stat {
+  border-radius: 1rem;
+  padding: 0.95rem 1rem;
+  background: var(--dk-surface-2, #f8fafc);
+}
+.vln-stat strong {
+  display: block;
+  font-size: 1.25rem;
+  font-family: "Space Grotesk", sans-serif;
+}
+.vln-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+.vln-suggestion {
+  border: 1px solid color-mix(in srgb, var(--vln-primary) 25%, var(--dk-border, #e2e8f0));
+  background: color-mix(in srgb, var(--vln-primary) 7%, #fff);
+  color: var(--vln-primary);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.vln-sidecard {
+  padding: 1.15rem 1.2rem;
+}
+.vln-session-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--dk-border, #eef2f7);
+}
+.vln-session-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.vln-session-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--vln-primary), var(--vln-accent));
+  flex-shrink: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vln-shell">
+  <section class="vln-hero">
+    <div class="container position-relative">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small">
+          <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-white-50">Home</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('virtual_games_catalog') }}" class="text-white-50">Virtual Games</a></li>
+          <li class="breadcrumb-item active text-white">Create Season</li>
+        </ol>
+      </nav>
+
+      <div class="d-flex align-items-center gap-3 flex-wrap mt-3">
+        {% if league.logo %}
+        <img src="{{ league.logo }}" alt="{{ league.name }}" class="vln-logo" onerror="this.style.display='none'">
+        {% endif %}
+        <div>
+          <div class="vln-title">{{ league.name }}</div>
+          <p class="mb-2 opacity-75">Start an offline season you can return to anytime, then keep advancing matchweeks whenever you want.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="vln-pill"><i class="bi bi-people-fill"></i>{{ league.teams|length }} clubs</span>
+            <span class="vln-pill"><i class="bi bi-calendar3"></i>{{ league.matchdays }} matchdays</span>
+            <span class="vln-pill"><i class="bi bi-palette-fill"></i>{{ league.country }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container pb-5">
+    <div class="row g-4 align-items-start">
+      <div class="col-lg-7">
+        <div class="vln-card">
+          <div class="vln-form-header">
+            <h1 class="h4 mb-1">Name your season</h1>
+            <p class="text-muted small mb-0">Use a custom season title so you can compare multiple runs of the same league later.</p>
+          </div>
+          <div class="vln-form-body">
+            <form method="post" action="{{ url_for('virtual_league_new_get', league_code=league_code) }}">
+              <label for="season_name" class="form-label fw-semibold">Season title</label>
+              <input
+                id="season_name"
+                name="season_name"
+                class="form-control vln-input"
+                maxlength="80"
+                value="{{ suggested_season_name }}"
+                placeholder="Example: Denis PL Challenge 2026"
+                autocomplete="off"
+              >
+              <div class="text-muted small mt-2">This label stays attached to the save, so your different seasons remain easy to track.</div>
+
+              <div class="vln-suggestions">
+                <button type="button" class="vln-suggestion" data-season-fill="{{ suggested_season_name }}">{{ suggested_season_name }}</button>
+                <button type="button" class="vln-suggestion" data-season-fill="Road to Glory {{ league.name }}">Road to Glory {{ league.name }}</button>
+                <button type="button" class="vln-suggestion" data-season-fill="Manager Mode {{ league.name }}">Manager Mode {{ league.name }}</button>
+              </div>
+
+              <div class="vln-stat-row">
+                <div class="vln-stat">
+                  <span class="text-muted small">Teams</span>
+                  <strong>{{ league.teams|length }}</strong>
+                  <span class="text-muted small">Full league roster</span>
+                </div>
+                <div class="vln-stat">
+                  <span class="text-muted small">Matchdays</span>
+                  <strong>{{ league.matchdays }}</strong>
+                  <span class="text-muted small">Advance week by week</span>
+                </div>
+                <div class="vln-stat">
+                  <span class="text-muted small">Matches</span>
+                  <strong>{{ (league.teams|length // 2) * league.matchdays }}</strong>
+                  <span class="text-muted small">Playable season total</span>
+                </div>
+              </div>
+
+              <div class="d-flex gap-2 flex-wrap mt-4">
+                <button type="submit" class="btn vln-btn-primary">
+                  <i class="bi bi-play-circle-fill me-2"></i>Create season
+                </button>
+                <a href="{{ url_for('virtual_games_catalog') }}" class="btn btn-outline-secondary vln-btn-ghost">
+                  Back to catalog
+                </a>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="vln-sidecard mb-3">
+          <h2 class="h6 mb-3">What this save gives you</h2>
+          <div class="d-flex flex-column gap-2 small text-muted">
+            <div><i class="bi bi-check2-circle me-2" style="color:var(--vln-primary)"></i>Shared fixture-card UI across the season flow</div>
+            <div><i class="bi bi-check2-circle me-2" style="color:var(--vln-primary)"></i>Goal scorers and stats inside every played fixture</div>
+            <div><i class="bi bi-check2-circle me-2" style="color:var(--vln-primary)"></i>Always-visible matchweek control while you play</div>
+            <div><i class="bi bi-check2-circle me-2" style="color:var(--vln-primary)"></i>Offline-friendly progress you can revisit later</div>
+          </div>
+        </div>
+
+        <div class="vln-sidecard">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h6 mb-0">Existing {{ league.name }} seasons</h2>
+            <span class="badge rounded-pill text-bg-light">{{ existing_sessions|length }}</span>
+          </div>
+
+          {% if existing_sessions %}
+            {% for sess in existing_sessions %}
+            <a href="{{ url_for('virtual_league_session', session_key=sess.session_key) }}" class="text-decoration-none">
+              <div class="vln-session-row">
+                <div class="vln-session-badge">{{ sess.league_code }}</div>
+                <div class="flex-grow-1 min-width-0">
+                  <div class="fw-semibold text-truncate" style="color:var(--bs-body-color)">{{ sess.display_name }}</div>
+                  <div class="text-muted small">{{ sess.played_matchdays }} / {{ sess.total_matchdays }} matchdays played</div>
+                </div>
+                <span class="badge {% if sess.status == 'completed' %}bg-success{% else %}bg-primary{% endif %} rounded-pill">
+                  {% if sess.status == 'completed' %}Done{% else %}Active{% endif %}
+                </span>
+              </div>
+            </a>
+            {% endfor %}
+          {% else %}
+          <p class="text-muted small mb-0">No saved {{ league.name }} seasons yet. This one will become the first.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const input = document.getElementById("season_name");
+  document.querySelectorAll("[data-season-fill]").forEach((button) => {
+    button.addEventListener("click", () => {
+      input.value = button.getAttribute("data-season-fill") || "";
+      input.focus();
+      input.select();
+    });
+  });
+})();
+</script>
+{% endblock %}

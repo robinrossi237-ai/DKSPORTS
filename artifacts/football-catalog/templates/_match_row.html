@@ -1,0 +1,94 @@
+{# Featured-style fixture card.
+   Optional context vars (set via {% with %} from the caller):
+     - hide_odds (bool): when true, the odds row is not rendered.
+     - result_team_id (int): when set and the match is FINISHED, a small
+       win/loss/draw indicator is shown for that team.
+     - team_positions (dict): {team_id: {pos, comp_code}} — when present, a
+       small position pill is rendered next to each team. CSS toggles whether
+       it's visible (body.show-positions).
+#}
+{% set _hide_odds = hide_odds if hide_odds is defined else false %}
+{% set _rt = result_team_id if result_team_id is defined else none %}
+{% set _tp = team_positions if team_positions is defined else {} %}
+{% set _result = none %}
+{% if _rt and m.status == 'FINISHED' and m.score and m.score.winner %}
+  {% if m.score.winner == 'DRAW' %}
+    {% set _result = 'D' %}
+  {% elif m.homeTeam and m.homeTeam.id == _rt %}
+    {% set _result = 'W' if m.score.winner == 'HOME_TEAM' else 'L' %}
+  {% elif m.awayTeam and m.awayTeam.id == _rt %}
+    {% set _result = 'W' if m.score.winner == 'AWAY_TEAM' else 'L' %}
+  {% endif %}
+{% endif %}
+{% set _is_ucl = (m.competition and (m.competition.code or '')|upper == 'CL') %}
+{% set _home_pos = _tp.get(m.homeTeam.id) if (m.homeTeam and m.homeTeam.id and _tp) else none %}
+{% set _away_pos = _tp.get(m.awayTeam.id) if (m.awayTeam and m.awayTeam.id and _tp) else none %}
+<a href="{{ url_for('match_detail', match_id=m.id) }}"
+   data-comp-code="{{ ((m.competition.code or '') if m.competition else '')|upper }}"
+   class="fx-card{% if _result %} fx-card-result fx-r-{{ _result|lower }}{% endif %}{% if _is_ucl %} fx-card-ucl{% endif %}">
+  {% if _result %}<span class="fx-result-badge fx-r-{{ _result|lower }}" title="{{ {'W':'Win','L':'Loss','D':'Draw'}[_result] }}">{{ _result }}</span>{% endif %}
+  {% if _is_ucl %}<span class="fx-ucl-flag" title="UEFA Champions League"><i class="bi bi-stars"></i>UCL</span>{% endif %}
+  <div class="fx-header">
+    {% if m.competition %}
+      <span class="fx-comp">
+        {% if m.competition.emblem %}<img src="{{ m.competition.emblem }}" alt="" />{% endif %}
+        {{ m.competition.name or m.competition.code }}
+      </span>
+    {% else %}
+      <span class="fx-comp">Featured</span>
+    {% endif %}
+  </div>
+
+  <div class="fx-row">
+    <div class="fx-team">
+      <div class="fx-crest">
+        {% if m.homeTeam.crest %}<img src="{{ m.homeTeam.crest }}" alt="" loading="lazy" onerror="this.style.display='none'" />{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}
+      </div>
+      <div class="fx-name">{{ m.homeTeam.shortName or m.homeTeam.name or 'TBD' }}</div>
+      {% if _home_pos and _home_pos.pos %}
+        <span class="fx-pos" title="{{ _home_pos.comp_code }} table position">#{{ _home_pos.pos }}</span>
+      {% endif %}
+    </div>
+
+    <div class="fx-center">
+      {% if m.status == 'FINISHED' %}
+        <div class="fx-score">{{ m.score.fullTime.home }}<span class="fx-sep">-</span>{{ m.score.fullTime.away }}</div>
+        <div class="fx-status-pill ft">FT</div>
+      {% elif m.status in ('IN_PLAY', 'PAUSED') %}
+        <div class="fx-score">{{ m.score.fullTime.home or 0 }}<span class="fx-sep">-</span>{{ m.score.fullTime.away or 0 }}</div>
+        <div class="fx-status-pill live blink">LIVE</div>
+      {% else %}
+        <div class="fx-date" data-fx-date data-utc="{{ m.utcDate }}">{{ m.utcDate|fmt_dmy }}</div>
+        <div class="fx-time" data-fx-time data-utc="{{ m.utcDate }}">{{ m.utcDate|fmt_time }}</div>
+      {% endif %}
+    </div>
+
+    <div class="fx-team">
+      <div class="fx-crest">
+        {% if m.awayTeam.crest %}<img src="{{ m.awayTeam.crest }}" alt="" loading="lazy" onerror="this.style.display='none'" />{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}
+      </div>
+      <div class="fx-name">{{ m.awayTeam.shortName or m.awayTeam.name or 'TBD' }}</div>
+      {% if _away_pos and _away_pos.pos %}
+        <span class="fx-pos" title="{{ _away_pos.comp_code }} table position">#{{ _away_pos.pos }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not _hide_odds and m._odds and (m._odds.home or m._odds.draw or m._odds.away) %}
+  <div class="fx-odds">
+    <div class="fx-odd">
+      <span class="fx-odd-label">1</span>
+      <span class="fx-odd-val">{% if m._odds.home %}{{ '%.2f'|format(m._odds.home) }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="fx-odd">
+      <span class="fx-odd-label">X</span>
+      <span class="fx-odd-val">{% if m._odds.draw %}{{ '%.2f'|format(m._odds.draw) }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="fx-odd">
+      <span class="fx-odd-label">2</span>
+      <span class="fx-odd-val">{% if m._odds.away %}{{ '%.2f'|format(m._odds.away) }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="fx-odd-brand" title="Odds via {{ m._odds.bookmaker or 'The Odds API' }}">ODDS</div>
+  </div>
+  {% endif %}
+</a>

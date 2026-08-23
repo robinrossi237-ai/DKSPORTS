@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% block title %}{{ team.name }} · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="team-page{% if team._accent %} team-themed{% endif %}"{% if team._accent %} style="--team-accent: {{ team._accent }};"{% endif %}>
+<section class="team-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li><li class="breadcrumb-item active">{{ team.name }}</li></ol></nav>
+    <div class="row g-4 align-items-center">
+      <div class="col-auto">
+        <div class="team-hero-crest"><img src="{{ img_url(team.get('crest_local'), team.crest) }}" alt="" onerror="this.style.display='none'" /></div>
+      </div>
+      <div class="col">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="text-muted small text-uppercase">{{ team.area.name }}</div>
+          <button type="button" class="dk-fav-star dk-fav-star-sm ms-1" data-fav-toggle data-fav-kind="teams"
+            data-fav-id="{{ team.id }}" data-fav-name="{{ team.name|e }}"
+            data-fav-meta="{{ team.area.name|e }}"
+            data-fav-img="{{ team.crest or '' }}"
+            data-fav-href="{{ url_for('team_detail', team_id=team.id) }}"
+            aria-label="Favorite this team" title="Pin to favorites">
+            <i class="bi bi-star"></i><i class="bi bi-star-fill"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary dk-share-btn ms-1"
+            data-dk-share data-dk-share-title="{{ team.name }} on DKSPORTS"
+            data-dk-share-text="Follow {{ team.name }} on DKSPORTS — squad, fixtures, results & more.">
+            <i class="bi bi-share me-1"></i>Share
+          </button>
+        </div>
+        <h1 class="display-6 fw-bold mb-2 mt-1">{{ team.name }}</h1>
+        <div class="d-flex flex-wrap gap-3 small text-muted">
+          {% if team.tla %}<span><i class="bi bi-tag me-1"></i>{{ team.tla }}</span>{% endif %}
+          {% if team.founded %}<span><i class="bi bi-calendar me-1"></i>Founded {{ team.founded }}</span>{% endif %}
+          {% if team.venue %}<span><i class="bi bi-geo-alt me-1"></i>{{ team.venue }}</span>{% endif %}
+          {% if team.clubColors %}<span><i class="bi bi-palette me-1"></i>{{ team.clubColors }}</span>{% endif %}
+          {% if team.website %}<a class="team-link" href="{{ team.website }}" target="_blank" rel="noopener"><i class="bi bi-globe me-1"></i>Website</a>{% endif %}
+        </div>
+        {% if positions %}
+        <div class="team-positions-row mt-3">
+          {% for p in positions %}
+          <a href="{{ url_for('competition_detail', code=p.competition.code) }}" class="team-position-chip" title="{{ p.competition.name }} table position">
+            {% if p.competition.emblem %}<img src="{{ p.competition.emblem }}" alt="" />{% endif %}
+            <span class="tpc-pos">#{{ p.position }}</span>
+            <span class="tpc-meta">
+              <span class="tpc-comp">{{ p.competition.name or p.competition.code }}</span>
+              <span class="tpc-pts">{{ p.points }} pts · {{ p.played }} GP</span>
+            </span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% if team.coach and (team.coach.name or team._coach_meta) %}
+      <div class="col-auto d-none d-md-block">
+        <div class="team-hero-coach">
+          <div class="thc-photo">
+            {% if team.coach_photo or team._coach_photo %}
+              <img src="{{ img_url(team.coach_photo, team._coach_photo) }}" alt="{{ team.coach.name }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+              <span class="thc-photo-fallback" style="display:none">{{ (team.coach.name or '?')[0]|upper }}</span>
+            {% else %}
+              <span class="thc-photo-fallback">{{ (team.coach.name or '?')[0]|upper }}</span>
+            {% endif %}
+          </div>
+          <div class="thc-info">
+            <div class="thc-label"><i class="bi bi-person-badge me-1"></i>Head coach</div>
+            <div class="thc-name">{{ team.coach.name or (team._coach_meta and team._coach_meta.name) }}</div>
+            <div class="thc-meta">
+              {% set _coach_country = team.coach.nationality or (team._coach_meta and team._coach_meta.nationality) %}
+              {% set _coach_age = (team._coach_meta and team._coach_meta.age) or (team.coach.dateOfBirth and team.coach.dateOfBirth|years_old) %}
+              {% if _coach_country %}{{ _coach_country }}{% endif %}
+              {% if _coach_age %} · {{ _coach_age }}y{% endif %}
+              {% if team.coach.contract and team.coach.contract.until %} · until {{ team.coach.contract.until }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  {% if team_match_summary %}
+  <div class="alert {% if team_match_summary.source == 'db' %}alert-light border{% else %}alert-warning{% endif %} d-flex flex-wrap align-items-center gap-2 mb-4">
+    <span class="fw-semibold"><i class="bi bi-calendar3 me-1"></i>Match archive</span>
+    {% if team_match_summary.source == 'db' %}
+      <span>{{ team_match_summary.played }} played</span>
+      <span class="text-muted">•</span>
+      <span>{{ team_match_summary.upcoming }} upcoming/live</span>
+      <span class="text-muted">•</span>
+      <span>{{ team_match_summary.competitions }} competition{{ '' if team_match_summary.competitions == 1 else 's' }}</span>
+      {% if team_match_summary.matchdays %}
+      <span class="text-muted">•</span>
+      <span>{{ team_match_summary.matchdays }} matchday groups cached locally</span>
+      {% endif %}
+    {% else %}
+      <span>Showing a live preview only.</span>
+      <span class="text-muted">Run a full import from Settings to archive every match for {{ team.name }} locally.</span>
+    {% endif %}
+    <span class="ms-auto form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" id="teamShowOdds" data-setting="show-odds" checked>
+      <label class="form-check-label small text-muted" for="teamShowOdds">Show odds</label>
+    </span>
+  </div>
+  {% endif %}
+
+  <ul class="nav nav-pills gg-tabs mb-4">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-squad" type="button"><i class="bi bi-people me-1"></i>Squad</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-fixtures" type="button"><i class="bi bi-calendar2-week me-1"></i>Fixtures{% if upcoming %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:.65rem">{{ upcoming|length }}</span>{% endif %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-results" type="button"><i class="bi bi-trophy me-1"></i>Results{% if recent %} <span class="badge bg-dark rounded-pill ms-1" style="font-size:.65rem">{{ recent|length }}</span>{% endif %}</button></li>
+    {% if home_away_form %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-form" type="button"><i class="bi bi-bar-chart me-1"></i>Form</button></li>{% endif %}
+    {% if next_opponent %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-h2h" type="button"><i class="bi bi-shuffle me-1"></i>H2H</button></li>{% endif %}
+    {% if team_news %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-news" type="button"><i class="bi bi-newspaper me-1"></i>News</button></li>{% endif %}
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-transfers" type="button"><i class="bi bi-arrow-left-right me-1"></i>Transfers{% if transfer_news %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:.65rem">{{ transfer_news|length }}</span>{% endif %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-comp" type="button"><i class="bi bi-list-ul me-1"></i>Competitions</button></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-squad">
+      {% if team.squad %}
+        <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
+          <div class="btn-group btn-group-sm position-toggle">
+            <button class="btn btn-outline-success active" data-pos="ALL">All ({{ team.squad|length }})</button>
+            <button class="btn btn-outline-success" data-pos="Goalkeeper">GK</button>
+            <button class="btn btn-outline-success" data-pos="Defence">DEF</button>
+            <button class="btn btn-outline-success" data-pos="Midfield">MID</button>
+            <button class="btn btn-outline-success" data-pos="Offence">FWD</button>
+          </div>
+          <div class="gg-search gg-search-pill" style="max-width:280px;">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+              <input id="playerFilter" type="search" class="form-control border-start-0" placeholder="Filter players…" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div class="row g-3" id="squadGrid">
+          {% for p in team.squad %}
+          {% set pos = p.position or 'Other' %}
+          {% set pos_short = 'GK' if pos == 'Goalkeeper' else ('DEF' if pos == 'Defence' else ('MID' if pos == 'Midfield' else ('FWD' if pos == 'Offence' else pos[:3]|upper))) %}
+          {% set pos_cls = 'pos-gk' if pos == 'Goalkeeper' else ('pos-def' if pos == 'Defence' else ('pos-mid' if pos == 'Midfield' else 'pos-fwd')) %}
+          <div class="col-6 col-md-4 col-lg-3 player-wrap"
+               data-position="{{ pos }}"
+               data-name="{{ (p.name or '')|lower }}">
+            <a class="player-card{% if p._photo or p._photo_local %} has-photo{% endif %} text-decoration-none"
+               {% if p.id %}href="{{ url_for('player_detail', person_id=p.id) }}"{% else %}href="#"{% endif %}>
+              <div class="player-card-inner">
+                <div class="player-avatar">
+                  {% if p._photo or p._photo_local %}
+                    <img src="{{ img_url(p._photo_local, p._photo) }}" alt="{{ p.name }}" loading="lazy"
+                         onerror="this.style.display='none'; this.parentNode.querySelector('.player-avatar-fallback').style.display='flex'" />
+                    <span class="player-avatar-fallback" style="display:none"><i class="bi bi-person-fill"></i></span>
+                  {% else %}
+                    <span class="player-avatar-fallback"><i class="bi bi-person-fill"></i></span>
+                  {% endif %}
+                </div>
+                <span class="player-pos-badge {{ pos_cls }}">{{ pos_short }}</span>
+              </div>
+              <div class="player-card-body">
+                <div class="player-card-name">{{ p.name }}</div>
+                <div class="player-card-meta">
+                  {% if p.nationality %}<span class="player-card-nat">{{ p.nationality }}</span>{% endif %}
+                  {% if p.dateOfBirth %}<span class="player-card-age">{{ p.dateOfBirth|years_old }}y</span>{% endif %}
+                  {% if p.shirtNumber %}<span class="player-card-num">#{{ p.shirtNumber }}</span>{% endif %}
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">No squad data available.</div>
+      {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="tab-fixtures">
+      {% if upcoming %}
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="small text-muted">{{ upcoming|length }} upcoming or live match{{ '' if upcoming|length == 1 else 'es' }}</div>
+          {% if team_match_summary.source == 'db' %}
+          <span class="badge bg-success-subtle text-success">Local archive</span>
+          {% endif %}
+        </div>
+        <div class="fixtures-grid">
+          {% for m in upcoming %}
+            {% with result_team_id=team.id, team_positions=team_positions %}{% include "_match_row.html" %}{% endwith %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">No upcoming fixtures.</div>
+      {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="tab-results">
+      {% if recent %}
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="small text-muted">{{ recent|length }} played match{{ '' if recent|length == 1 else 'es' }}</div>
+          {% if team_match_summary.source == 'db' %}
+          <span class="badge bg-success-subtle text-success">Full cached history</span>
+          {% endif %}
+        </div>
+        <div class="fixtures-grid">
+          {% for m in recent %}
+            {% with result_team_id=team.id, team_positions=team_positions %}{% include "_match_row.html" %}{% endwith %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">No recent results.</div>
+      {% endif %}
+    </div>
+
+    {% if home_away_form %}
+    <div class="tab-pane fade" id="tab-form">
+      <div class="row g-3">
+        {% for f in home_away_form %}
+        <div class="col-12">
+          <div class="form-card">
+            <div class="form-card-header">
+              {% if f.competition.emblem %}<img src="{{ f.competition.emblem }}" alt="" />{% endif %}
+              <span class="fw-semibold">{{ f.competition.name or f.competition.code }}</span>
+            </div>
+            <div class="form-split">
+              {% set h = f.home %}
+              {% set a = f.away %}
+              <div class="form-side">
+                <div class="form-side-title"><i class="bi bi-house-door me-1"></i>Home</div>
+                {% if h %}
+                <div class="form-side-stats">
+                  <span><strong>{{ h.played or 0 }}</strong> P</span>
+                  <span><strong>{{ h.won or 0 }}</strong> W</span>
+                  <span><strong>{{ h.draw or 0 }}</strong> D</span>
+                  <span><strong>{{ h.lost or 0 }}</strong> L</span>
+                  <span><strong>{{ h.goalsFor or 0 }}:{{ h.goalsAgainst or 0 }}</strong></span>
+                  <span><strong>{{ h.points or 0 }}</strong> pts</span>
+                </div>
+                {% else %}<div class="text-muted small">No data.</div>{% endif %}
+              </div>
+              <div class="form-side">
+                <div class="form-side-title"><i class="bi bi-airplane me-1"></i>Away</div>
+                {% if a %}
+                <div class="form-side-stats">
+                  <span><strong>{{ a.played or 0 }}</strong> P</span>
+                  <span><strong>{{ a.won or 0 }}</strong> W</span>
+                  <span><strong>{{ a.draw or 0 }}</strong> D</span>
+                  <span><strong>{{ a.lost or 0 }}</strong> L</span>
+                  <span><strong>{{ a.goalsFor or 0 }}:{{ a.goalsAgainst or 0 }}</strong></span>
+                  <span><strong>{{ a.points or 0 }}</strong> pts</span>
+                </div>
+                {% else %}<div class="text-muted small">No data.</div>{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if next_opponent %}
+    <div class="tab-pane fade" id="tab-h2h">
+      <div class="h2h-block mb-3">
+        <div class="h2h-summary">
+          <div class="h2h-team">
+            {% if team.crest %}<img src="{{ team.crest }}" alt="" />{% endif %}
+            <span class="fw-semibold">{{ team.shortName or team.name }}</span>
+          </div>
+          <div class="h2h-vs">vs</div>
+          <div class="h2h-team">
+            {% if next_opponent.crest %}<img src="{{ next_opponent.crest }}" alt="" />{% endif %}
+            <span class="fw-semibold">{{ next_opponent.shortName }}</span>
+          </div>
+        </div>
+        <div class="h2h-context text-muted small">
+          Next match · {{ next_opponent.match.utcDate|fmt_dmy }} {{ next_opponent.match.utcDate|fmt_time }}
+          {% if next_opponent.is_home_for_team %}<span>· at home</span>{% else %}<span>· away</span>{% endif %}
+        </div>
+      </div>
+      {% if h2h %}
+        {% set _w = h2h|selectattr('home', 'eq', team.name)|selectattr('winner', 'eq', 'H')|list|length
+                  + h2h|selectattr('away', 'eq', team.name)|selectattr('winner', 'eq', 'A')|list|length %}
+        {% set _l = h2h|selectattr('home', 'eq', team.name)|selectattr('winner', 'eq', 'A')|list|length
+                  + h2h|selectattr('away', 'eq', team.name)|selectattr('winner', 'eq', 'H')|list|length %}
+        {% set _d = h2h|selectattr('winner', 'eq', 'D')|list|length %}
+        <div class="h2h-tally mb-3">
+          <span class="h2h-tally-pill h2h-w"><strong>{{ _w }}</strong> W</span>
+          <span class="h2h-tally-pill h2h-d"><strong>{{ _d }}</strong> D</span>
+          <span class="h2h-tally-pill h2h-l"><strong>{{ _l }}</strong> L</span>
+          <span class="text-muted small ms-2">last {{ h2h|length }} meetings</span>
+        </div>
+        <div class="h2h-list">
+          {% for r in h2h %}
+          <div class="h2h-row">
+            <span class="h2h-row-date">{{ r.date }}</span>
+            <span class="h2h-row-team text-end">{{ r.home }}</span>
+            <span class="h2h-row-score"><strong>{{ r.score_home }}</strong> - <strong>{{ r.score_away }}</strong></span>
+            <span class="h2h-row-team">{{ r.away }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary"><i class="bi bi-info-circle me-1"></i>No prior head-to-head data found between {{ team.shortName or team.name }} and {{ next_opponent.shortName }}.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if team_news %}
+    <div class="tab-pane fade" id="tab-news">
+      <div class="row g-3">
+        {% for n in team_news %}
+        <div class="col-12 col-md-6 col-lg-4">{% include "_news_card.html" %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="tab-pane fade" id="tab-transfers">
+      {# ---- Live transfers from footapi7 ---- #}
+      <div id="transfersLiveSection" class="mb-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <h3 class="h6 mb-0"><i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer Window Data</h3>
+          <button class="btn btn-sm btn-outline-primary rounded-pill ms-auto" id="loadTransfersBtn">
+            <i class="bi bi-cloud-download me-1"></i>Load Transfers
+          </button>
+        </div>
+        <div id="transfersResult">
+          <div class="alert alert-secondary small mb-0">
+            <i class="bi bi-info-circle me-1"></i>Click "Load Transfers" to fetch arrivals and departures from footapi7.
+            {% if not has_shotmap %}<br><span class="text-muted">Requires <code>RAPIDAPI_FOOTAPI7_KEY</code> — set it in <a href="{{ url_for('settings_page') }}">Settings</a>.</span>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# ---- Transfer news articles ---- #}
+      {% if transfer_news %}
+      <div class="dk-transfer-header mb-3">
+        <i class="bi bi-newspaper text-accent me-2"></i>
+        <strong>Transfer news articles</strong>
+        <span class="text-muted small ms-2">— {{ transfer_news|length }} article{{ '' if transfer_news|length == 1 else 's' }}</span>
+      </div>
+      <div class="row g-3">
+        {% for n in transfer_news %}
+        <div class="col-12 col-md-6 col-lg-4">{% include "_news_card.html" %}</div>
+        {% endfor %}
+      </div>
+      {% elif team_news %}
+      <div class="alert alert-light border small">
+        <i class="bi bi-info-circle me-1"></i>No transfer-related stories found in the latest news for {{ team.name }}.
+      </div>
+      {% endif %}
+
+      <script>
+      (function(){
+        const teamId = {{ team.id | tojson }};
+        const btn = document.getElementById('loadTransfersBtn');
+        const result = document.getElementById('transfersResult');
+        if (!btn) return;
+        btn.addEventListener('click', async function(){
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading…';
+          try {
+            const res = await fetch(`/api/team/${teamId}/transfers`);
+            const data = await res.json();
+            const transfers = data.transfers || [];
+            if (data.error && !transfers.length) {
+              result.innerHTML = `<div class="alert alert-warning small">${data.error}</div>`;
+              btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Retry';
+              return;
+            }
+            if (!transfers.length) {
+              result.innerHTML = '<div class="alert alert-secondary small">No transfer records found for this team.</div>';
+              btn.style.display = 'none';
+              return;
+            }
+            btn.style.display = 'none';
+            const ins  = transfers.filter(t => t.transfer_type === 'in');
+            const outs = transfers.filter(t => t.transfer_type === 'out');
+            result.innerHTML = renderTransfers(ins, outs);
+          } catch(e) {
+            result.innerHTML = `<div class="alert alert-danger small">Error: ${e.message}</div>`;
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Retry';
+          }
+        });
+
+        function renderTransfers(ins, outs) {
+          function rows(list) {
+            if (!list.length) return '<tr><td colspan="4" class="text-center text-muted">None</td></tr>';
+            return list.map(t => `<tr>
+              <td>
+                ${t.player_image ? `<img src="${t.player_image}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:6px" onerror="this.style.display='none'">` : ''}
+                ${t.player_name || '—'}
+              </td>
+              <td>${t.from_team || '—'}</td>
+              <td>${t.to_team || '—'}</td>
+              <td class="text-muted small">${t.transfer_fee || '—'}</td>
+            </tr>`).join('');
+          }
+          return `
+          <div class="row g-3">
+            <div class="col-12 col-lg-6">
+              <div class="rounded-3 border overflow-hidden">
+                <div class="px-3 py-2 fw-semibold small" style="background:rgba(22,163,74,.1);color:#15803d;border-bottom:1px solid var(--dk-border)">
+                  <i class="bi bi-arrow-down-circle-fill me-1"></i>Arrivals (${ins.length})
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>Player</th><th>From</th><th>To</th><th>Fee</th></tr></thead>
+                    <tbody>${rows(ins)}</tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="rounded-3 border overflow-hidden">
+                <div class="px-3 py-2 fw-semibold small" style="background:rgba(220,38,38,.08);color:#dc2626;border-bottom:1px solid var(--dk-border)">
+                  <i class="bi bi-arrow-up-circle-fill me-1"></i>Departures (${outs.length})
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>Player</th><th>From</th><th>To</th><th>Fee</th></tr></thead>
+                    <tbody>${rows(outs)}</tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        }
+      })();
+      </script>
+    </div>
+
+    <div class="tab-pane fade" id="tab-comp">
+      {% if team.runningCompetitions %}
+        <div class="row g-3">
+          {% for c in team.runningCompetitions %}
+          <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ url_for('competition_detail', code=c.code) }}" class="league-card text-decoration-none">
+              <div class="league-emblem"><img src="{{ c.emblem }}" alt="" onerror="this.style.display='none'" /></div>
+              <div class="league-meta">
+                <div class="text-muted small text-uppercase">{{ c.type }}</div>
+                <div class="fw-semibold mt-1">{{ c.name }}</div>
+              </div>
+              <span class="league-arrow"><i class="bi bi-arrow-up-right"></i></span>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">Not currently in any tracked competitions.</div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function(){
+    const filter = document.getElementById('playerFilter');
+    const buttons = document.querySelectorAll('.position-toggle button');
+    let activePos = 'ALL';
+    function apply(){
+      const q = (filter && filter.value || '').toLowerCase();
+      document.querySelectorAll('.player-wrap').forEach(el => {
+        const matchPos = activePos === 'ALL' || el.dataset.position === activePos;
+        const matchQ = !q || el.dataset.name.includes(q);
+        el.style.display = (matchPos && matchQ) ? '' : 'none';
+      });
+    }
+    buttons.forEach(b => b.addEventListener('click', () => {
+      buttons.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      activePos = b.dataset.pos;
+      apply();
+    }));
+    if (filter) filter.addEventListener('input', apply);
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}All Competitions · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="container py-5">
+  <div class="d-flex align-items-end justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <h1 class="h2 mb-1"><i class="bi bi-trophy text-success me-2"></i>All competitions</h1>
+      <p class="text-muted mb-0">{{ competitions|length }} competitions worldwide. Cards marked <span class="badge bg-success-subtle text-success border">Live</span> have full data on the free tier.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <div class="gg-search gg-search-pill" style="min-width:280px;">
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-funnel"></i></span>
+          <input id="filterInput" type="search" class="form-control border-start-0" placeholder="Filter by name or country…" autocomplete="off" />
+        </div>
+      </div>
+      <select id="areaFilter" class="form-select dk-select-pill" style="min-width:180px;">
+        <option value="">All countries</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-3" id="competitionsGrid">
+    {% for c in competitions %}
+    <div class="col-12 col-sm-6 col-lg-4 col-xl-3 comp-card-wrap"
+         data-name="{{ (c.name or '')|lower }}"
+         data-area="{{ (c.area.name or '')|lower }}"
+         data-free="{{ '1' if c._free else '0' }}">
+      <div class="comp-card h-100">
+        <div class="comp-card-top">
+          <img src="{{ c.emblem or 'https://crests.football-data.org/' ~ c.code ~ '.png' }}" alt="" loading="lazy" onerror="this.style.display='none'" />
+          {% if c._free %}<span class="badge bg-success-subtle text-success border">Live</span>{% endif %}
+        </div>
+        <div class="comp-card-body">
+          <div class="text-muted small text-uppercase">{{ c.area.name or 'International' }}</div>
+          <div class="fw-semibold mt-1">{{ c.name }}</div>
+          <div class="text-muted small mt-1">{{ c.type or '—' }}</div>
+        </div>
+        <div class="comp-card-footer">
+          {% if c._free %}
+          <a href="{{ url_for('competition_detail', code=c.code) }}" class="btn btn-sm btn-success w-100"><i class="bi bi-eye me-1"></i>Open</a>
+          {% else %}
+          <button class="btn btn-sm btn-outline-secondary w-100" disabled title="Not available on free tier">Tier-locked</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function(){
+    const input = document.getElementById('filterInput');
+    const areaSel = document.getElementById('areaFilter');
+    const cards = Array.from(document.querySelectorAll('.comp-card-wrap'));
+    const areas = new Set();
+    cards.forEach(c => { const a = c.dataset.area; if (a) areas.add(a); });
+    Array.from(areas).sort().forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = a.replace(/\b\w/g, l => l.toUpperCase());
+      areaSel.appendChild(opt);
+    });
+    function apply(){
+      const q = (input.value||'').toLowerCase();
+      const a = areaSel.value;
+      cards.forEach(c => {
+        const matchQ = !q || c.dataset.name.includes(q) || c.dataset.area.includes(q);
+        const matchA = !a || c.dataset.area === a;
+        c.style.display = (matchQ && matchA) ? '' : 'none';
+      });
+    }
+    input.addEventListener('input', apply);
+    areaSel.addEventListener('change', apply);
+  })();
+</script>
+{% endblock %}

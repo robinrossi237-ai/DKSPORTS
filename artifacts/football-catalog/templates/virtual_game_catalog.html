@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% block title %}Virtual Games - {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.vgc-hero {
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a1060 50%, #0d1f3c 100%);
+  color: #fff;
+  padding: 3rem 0 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.vgc-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(47,93,255,0.25) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.2) 0%, transparent 55%);
+  pointer-events: none;
+}
+.vgc-hero h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+.vgc-section-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.5px;
+  margin-bottom: 1.25rem;
+}
+.vgc-league-card {
+  border-radius: 1.1rem;
+  overflow: hidden;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  background: var(--dk-surface, #fff);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  position: relative;
+}
+.vgc-league-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+}
+[data-bs-theme="dark"] .vgc-league-card {
+  background: #0f1629;
+  border-color: #1e2d4a;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+[data-bs-theme="dark"] .vgc-league-card:hover {
+  box-shadow: 0 12px 36px rgba(0,0,0,0.4);
+}
+.vgc-accent-bar {
+  width: 100%;
+  height: 5px;
+}
+.vgc-card-inner {
+  padding: 1.1rem 1.25rem 0.9rem;
+}
+.vgc-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.8rem;
+}
+.vgc-league-logo,
+.vgc-league-logo-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+}
+.vgc-league-logo {
+  object-fit: contain;
+  padding: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.vgc-league-logo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+[data-bs-theme="dark"] .vgc-league-logo,
+[data-bs-theme="dark"] .vgc-league-logo-placeholder {
+  background: #1a2540;
+  border-color: #2a3a54;
+}
+.vgc-league-name {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--bs-body-color);
+  line-height: 1.2;
+}
+.vgc-league-country {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--bs-secondary);
+  margin-top: 2px;
+}
+.vgc-stats-row {
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.6rem 0;
+  margin-bottom: 0.75rem;
+  border-top: 1px solid var(--dk-border, #f1f5f9);
+  border-bottom: 1px solid var(--dk-border, #f1f5f9);
+}
+[data-bs-theme="dark"] .vgc-stats-row {
+  border-color: #1e2d4a;
+}
+.vgc-stat {
+  font-size: 0.75rem;
+  color: var(--bs-secondary);
+}
+.vgc-stat strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--bs-body-color);
+  font-weight: 700;
+}
+.vgc-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.35rem 1.1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  transition: opacity 0.18s, transform 0.15s;
+}
+.vgc-league-card:hover .vgc-cta {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
+.vgc-sessions-badge {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  background: rgba(0,0,0,0.07);
+  color: var(--bs-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  border: 1px solid var(--dk-border, #e2e8f0);
+}
+[data-bs-theme="dark"] .vgc-sessions-badge {
+  background: rgba(255,255,255,0.08);
+  border-color: #2a3a54;
+  color: #94a3b8;
+}
+.vgc-bet-card {
+  background: linear-gradient(135deg, #1e1060 0%, #2f1d80 100%);
+  border-radius: 1.1rem;
+  border: 1px solid rgba(139,92,246,0.3);
+  padding: 2rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+  display: block;
+}
+.vgc-bet-card::before {
+  content: "";
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.35), transparent);
+}
+.vgc-bet-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(139,92,246,0.3);
+}
+.vgc-bet-card h4 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  color: #fff;
+}
+.vgc-bet-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  padding: 0.35rem 1.1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.18s;
+  margin-top: 0.75rem;
+}
+.vgc-bet-card:hover .vgc-bet-cta {
+  background: rgba(255,255,255,0.25);
+}
+.vgc-session-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--dk-surface, #fff);
+  border: 1px solid var(--dk-border, #e2e8f0);
+  margin-bottom: 0.5rem;
+  transition: background 0.18s;
+  text-decoration: none;
+}
+.vgc-session-row:hover {
+  background: rgba(47,93,255,0.05);
+}
+.vgc-session-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+[data-bs-theme="dark"] .vgc-session-row {
+  background: #0f1629;
+  border-color: #1e2d4a;
+}
+[data-bs-theme="dark"] .vgc-session-row:hover {
+  background: rgba(47,93,255,0.08);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="vgc-hero">
+  <div class="container position-relative">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-white-50">Home</a></li>
+        <li class="breadcrumb-item active text-white">Virtual Games</li>
+      </ol>
+    </nav>
+    <div class="mt-3">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div>
+          <h1 class="mb-1"><i class="bi bi-joystick me-2"></i>DK SPORTS Virtual Games</h1>
+          <p class="mb-0 opacity-75">Pick a virtual league and simulate a full season, or challenge a friend in the betting arena.</p>
+        </div>
+        <div class="ms-auto d-flex gap-2 flex-wrap">
+          <span class="badge rounded-pill px-3 py-2" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2)">
+            <i class="bi bi-trophy me-1"></i>5 Leagues
+          </span>
+          <span class="badge rounded-pill px-3 py-2" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2)">
+            <i class="bi bi-controller me-1"></i>100% Virtual
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="vgc-section-title mb-0"><i class="bi bi-flag-fill me-2 text-primary"></i>Virtual Leagues</h2>
+    <span class="text-muted small">Simulate a full season matchday by matchday</span>
+  </div>
+  <div class="row g-3 mb-5">
+    {% for code, league in leagues.items() %}
+    {% set session_count = session_counts.get(code, 0) %}
+    <div class="col-sm-6 col-lg-4">
+      <a href="{{ url_for('virtual_league_new_get', league_code=code) }}" class="vgc-league-card">
+        <div class="vgc-accent-bar" style="background:{{ league.color }}"></div>
+
+        {% if session_count > 0 %}
+        <span class="vgc-sessions-badge">{{ session_count }} session{{ 's' if session_count != 1 }}</span>
+        {% endif %}
+
+        <div class="vgc-card-inner">
+          <div class="vgc-logo-row">
+            {% if league.get('logo') %}
+            <img src="{{ league.logo }}" alt="{{ league.name }}" class="vgc-league-logo"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="vgc-league-logo-placeholder" style="display:none"><i class="bi bi-shield-fill"></i></div>
+            {% else %}
+            <div class="vgc-league-logo-placeholder"><i class="bi bi-shield-fill"></i></div>
+            {% endif %}
+            <div>
+              <div class="vgc-league-name">{{ league.name }}</div>
+              <div class="vgc-league-country"><i class="bi bi-geo-alt-fill me-1"></i>{{ league.country }}</div>
+            </div>
+          </div>
+
+          <div class="vgc-stats-row">
+            <div class="vgc-stat"><strong>{{ league.teams|length }}</strong>Teams</div>
+            <div class="vgc-stat"><strong>{{ league.matchdays }}</strong>Matchdays</div>
+            <div class="vgc-stat"><strong>{{ (league.teams|length // 2) * league.matchdays }}</strong>Matches</div>
+          </div>
+
+          <div>
+            <span class="vgc-cta" style="background:{{ league.color }}">
+              <i class="bi bi-play-circle-fill"></i>Create Season
+            </span>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="vgc-section-title mb-0"><i class="bi bi-currency-dollar me-2 text-warning"></i>Virtual Betting Arena</h2>
+  </div>
+  <div class="row g-3 mb-5">
+    <div class="col-md-7">
+      <a href="{{ url_for('virtual_game') }}" class="vgc-bet-card">
+        <div class="d-flex align-items-start gap-3">
+          <div style="font-size:3rem;line-height:1"><i class="bi bi-dice-5-fill"></i></div>
+          <div>
+            <h4>Two-Player Betting Game</h4>
+            <p class="opacity-75 mb-2" style="font-size:.88rem">
+              Pick teams, place bets, and watch a full virtual match unfold in real-time -
+              with shot maps, lineups, events timeline and live score animation.
+            </p>
+            <div class="d-flex gap-3 small opacity-75 flex-wrap">
+              <span><i class="bi bi-people me-1"></i>2 Players</span>
+              <span><i class="bi bi-shield-check me-1"></i>Any teams</span>
+              <span><i class="bi bi-clock me-1"></i>~60 seconds</span>
+            </div>
+            <div class="vgc-bet-cta">
+              <i class="bi bi-play-circle-fill"></i>Go to Betting Game
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-5">
+      <div class="card h-100 border-0 shadow-sm rounded-4">
+        <div class="card-body">
+          <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Bet Games</h6>
+          {% if recent_bets %}
+          <div style="max-height:220px;overflow-y:auto">
+            <table class="table table-sm mb-0" style="font-size:.78rem">
+              <tbody>
+              {% for game in recent_bets[:8] %}
+              <tr>
+                <td class="fw-semibold">{{ game.home_team }} <span class="text-muted">vs</span> {{ game.away_team }}</td>
+                <td class="text-center fw-bold">{{ game.home_score }}-{{ game.away_score }}</td>
+                <td class="text-center">
+                  {% if game.winner == 'player1' %}<span class="badge bg-primary">P1</span>
+                  {% elif game.winner == 'player2' %}<span class="badge" style="background:var(--dk-accent)">P2</span>
+                  {% else %}<span class="badge bg-danger">House</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted small mb-0">No games played yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if active_sessions %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="vgc-section-title mb-0"><i class="bi bi-play-circle me-2 text-success"></i>Continue a Season</h2>
+  </div>
+  <div class="row g-2 mb-4">
+    {% for sess in active_sessions %}
+    {% set league = leagues.get(sess.league_code, {}) %}
+    <div class="col-md-6">
+      <a href="{{ url_for('virtual_league_session', session_key=sess.session_key) }}" class="vgc-session-row">
+        {% if league.get('logo') %}
+        <img src="{{ league.logo }}" alt="{{ sess.league_name }}"
+             style="width:34px;height:34px;object-fit:contain;border-radius:.4rem;background:#f8fafc;border:1px solid #e2e8f0;padding:3px;flex-shrink:0"
+             onerror="this.style.display='none'">
+        {% else %}
+        <div class="vgc-session-badge" style="background:{{ league.get('color', '#2f5dff') }}">
+          {{ sess.league_code[:2] }}
+        </div>
+        {% endif %}
+        <div class="flex-grow-1 min-width-0">
+          <div class="fw-semibold small text-truncate" style="color:var(--bs-body-color)">{{ sess.display_name }}</div>
+          <div class="text-muted" style="font-size:.72rem">
+            {{ sess.league_name }} - MD {{ sess.played_matchdays }} / {{ sess.total_matchdays }} played
+          </div>
+          <div class="progress mt-1" style="height:4px;border-radius:2px">
+            <div class="progress-bar" style="width:{{ sess.progress_pct }}%;background:{{ league.get('color', '#2f5dff') }}"></div>
+          </div>
+        </div>
+        <div class="text-end flex-shrink-0">
+          <span class="badge {% if sess.status == 'completed' %}bg-success{% else %}bg-primary{% endif %} rounded-pill">
+            {% if sess.status == 'completed' %}Done{% else %}Active{% endif %}
+          </span>
+          <div class="text-muted" style="font-size:.7rem;margin-top:2px">{{ sess.created_at[:10] }}</div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}About · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      <h1 class="display-5 fw-bold mb-3">About <span class="grad-text">DKSPORTS</span></h1>
+      <p class="lead text-muted">A clean, fast, responsive football catalog that pulls live data from football-data.org and live odds from The Odds API, and presents it all in one beautiful place.</p>
+
+      <div class="row g-4 mt-3">
+        <div class="col-md-6">
+          <div class="surface-card p-4 h-100">
+            <h3 class="h5"><i class="bi bi-stack text-primary me-2"></i>Tech stack</h3>
+            <ul class="list-unstyled small text-muted mb-0">
+              <li>· Python 3 · Flask</li>
+              <li>· Bootstrap 5 · Bootstrap Icons</li>
+              <li>· Vanilla JavaScript</li>
+              <li>· football-data.org REST API</li>
+              <li>· The Odds API (live betting odds)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="surface-card p-4 h-100">
+            <h3 class="h5"><i class="bi bi-shield-check text-primary me-2"></i>What you get</h3>
+            <ul class="list-unstyled small text-muted mb-0">
+              <li>· Live league standings &amp; form</li>
+              <li>· Top scorers leaderboards</li>
+              <li>· Full team rosters &amp; staff</li>
+              <li>· Upcoming fixtures with 1·X·2 odds</li>
+              <li>· Match details and scores</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 p-4 surface-card">
+        <h3 class="h5"><i class="bi bi-info-circle text-primary me-2"></i>About the data</h3>
+        <p class="text-muted small mb-2">Match data is fetched from <a href="https://www.football-data.org" target="_blank" rel="noopener">football-data.org</a>. The free tier includes top European leagues, the Brazilian Série A, World Cup, European Championship and the Champions League. Other competitions may show "tier-locked" labels.</p>
+        <p class="text-muted small mb-0">Live betting odds are provided by <a href="https://the-odds-api.com" target="_blank" rel="noopener">The Odds API</a> (h2h decimal odds, EU bookmakers). Odds are best-available across covered bookmakers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

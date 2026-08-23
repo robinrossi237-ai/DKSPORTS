@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Compare players · {{ site_name }}{% endblock %}
+{% block og_title %}{% if a.person and b.person %}{{ a.person.name }} vs {{ b.person.name }} · {% endif %}Compare players · {{ site_name }}{% endblock %}
+{% block og_desc %}Side-by-side comparison of two players: goals, assists, age and more.{% endblock %}
+{% block content %}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li><li class="breadcrumb-item active">Compare players</li></ol></nav>
+  <div class="text-center mb-4">
+    <h1 class="display-6 fw-bold mb-2"><i class="bi bi-person-arms-up text-primary me-2"></i>Compare players</h1>
+    <p class="lead text-muted">Pick any cached players and compare their numbers side by side.</p>
+  </div>
+
+  <form method="get" class="dk-cmp-pickers reveal in" data-compare-form data-kind="players">
+    <div class="dk-cmp-pick">
+      <label for="cmpPA">Player A</label>
+      <div class="dk-search-wrap dk-cmp-search" data-compare-picker data-kind="players">
+        <input type="hidden" name="a" value="{{ a_id or '' }}" data-compare-id />
+        <input id="cmpPA" type="search" class="form-control" value="{{ a_label }}" placeholder="Search cached players..." autocomplete="off" data-compare-input />
+        <div class="dk-search-suggest" data-compare-panel hidden></div>
+      </div>
+      <div class="dk-cmp-hint" data-compare-hint>{% if a.person %}{{ a.person.name }}{% if a.stats and a.stats.team %} · {{ a.stats.team }}{% endif %}{% else %}Search from your offline player archive.{% endif %}</div>
+      <div class="dk-cmp-preview" data-compare-preview>
+        {% if a.person %}
+        <span class="dk-cmp-preview-thumb">
+          {% if a.stats.photo_local or a.stats.photo %}
+          <img src="{{ img_url(a.stats.photo_local, a.stats.photo) }}" alt="{{ a.person.name }}">
+          {% else %}
+          <i class="bi bi-person-fill"></i>
+          {% endif %}
+        </span>
+        <div class="dk-cmp-preview-meta">
+          <div class="dk-cmp-preview-name">{{ a.person.name }}</div>
+          <div class="dk-cmp-preview-sub">{{ a.stats.team or a.person.position or 'Offline archive' }}</div>
+        </div>
+        {% else %}
+        <div class="dk-cmp-preview-empty">Choose the first player to load the portrait, club context, and comparison snapshot.</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="dk-cmp-vs">
+      <span>VS</span>
+      <button type="button" class="dk-cmp-swap" data-compare-swap aria-label="Swap both players">
+        <i class="bi bi-arrow-left-right"></i>
+      </button>
+    </div>
+    <div class="dk-cmp-pick">
+      <label for="cmpPB">Player B</label>
+      <div class="dk-search-wrap dk-cmp-search" data-compare-picker data-kind="players">
+        <input type="hidden" name="b" value="{{ b_id or '' }}" data-compare-id />
+        <input id="cmpPB" type="search" class="form-control" value="{{ b_label }}" placeholder="Search cached players..." autocomplete="off" data-compare-input />
+        <div class="dk-search-suggest" data-compare-panel hidden></div>
+      </div>
+      <div class="dk-cmp-hint" data-compare-hint>{% if b.person %}{{ b.person.name }}{% if b.stats and b.stats.team %} · {{ b.stats.team }}{% endif %}{% else %}Search from your offline player archive.{% endif %}</div>
+      <div class="dk-cmp-preview" data-compare-preview>
+        {% if b.person %}
+        <span class="dk-cmp-preview-thumb">
+          {% if b.stats.photo_local or b.stats.photo %}
+          <img src="{{ img_url(b.stats.photo_local, b.stats.photo) }}" alt="{{ b.person.name }}">
+          {% else %}
+          <i class="bi bi-person-fill"></i>
+          {% endif %}
+        </span>
+        <div class="dk-cmp-preview-meta">
+          <div class="dk-cmp-preview-name">{{ b.person.name }}</div>
+          <div class="dk-cmp-preview-sub">{{ b.stats.team or b.person.position or 'Offline archive' }}</div>
+        </div>
+        {% else %}
+        <div class="dk-cmp-preview-empty">Choose the second player to line both profiles up side by side.</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="dk-cmp-actions">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right me-1"></i>Compare</button>
+      {% if a.person and b.person %}
+      <button type="button" class="btn btn-outline-primary" data-pin-comparison data-kind="players"
+        data-id="{{ a.person.id }}-{{ b.person.id }}"
+        data-title="{{ a.person.name }} vs {{ b.person.name }}"
+        data-meta="{{ a.stats.team or '' }}{% if a.stats.team and b.stats.team %} · {% endif %}{{ b.stats.team or '' }}"
+        data-href="{{ url_for('compare_players_page', a=a.person.id, b=b.person.id) }}"
+        data-left-img="{{ img_url(a.stats.photo_local, a.stats.photo) or a.stats.crest or '' }}"
+        data-right-img="{{ img_url(b.stats.photo_local, b.stats.photo) or b.stats.crest or '' }}">
+        <i class="bi bi-pin-angle me-1"></i>Pin comparison
+      </button>
+      {% endif %}
+      <a href="{{ url_for('compare_players_page') }}" class="btn btn-outline-secondary">Reset</a>
+    </div>
+  </form>
+
+  <section class="dk-cmp-saved">
+    <div class="dk-cmp-toolbar">
+      <div>
+        <h2 class="h6 mb-1">Pinned comparisons</h2>
+        <p class="text-muted small mb-0">Keep your favorite player duels ready to reopen instantly from the local archive.</p>
+      </div>
+    </div>
+    <div class="dk-saved-strip" data-saved-comparisons data-kind="players">
+      <div class="dk-skeleton-row"><span class="dk-skeleton-card"></span><span class="dk-skeleton-card"></span></div>
+    </div>
+  </section>
+
+  {% if a.person and b.person %}
+  {% set sa = a.stats %}{% set sb = b.stats %}
+  <div class="dk-cmp-toolbar">
+    <div class="dk-form-strip">
+      {% if sa.form %}{% for r in sa.form %}<span class="dk-form-chip f-{{ r }}">{{ r }}</span>{% endfor %}{% endif %}
+      <span class="text-muted small align-self-center">vs</span>
+      {% if sb.form %}{% for r in sb.form %}<span class="dk-form-chip f-{{ r }}">{{ r }}</span>{% endfor %}{% endif %}
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm dk-share-btn" data-dk-share data-dk-share-title="{{ a.person.name }} vs {{ b.person.name }}" data-dk-share-text="DKSPORTS comparison: {{ a.person.name }} vs {{ b.person.name }}">
+      <i class="bi bi-share me-1"></i>Share comparison
+    </button>
+  </div>
+  <div class="dk-cmp-grid reveal in">
+    {% for side, P, S in [('a', a.person, sa), ('b', b.person, sb)] %}
+    <div class="dk-cmp-card">
+      <div class="dk-cmp-card-crest">
+        {% if S.photo_local or S.photo %}
+        <img src="{{ img_url(S.photo_local, S.photo) }}" alt="{{ P.name }}">
+        {% else %}
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:2rem;font-weight:800;">{{ (P.name or '?')[0]|upper }}</span>
+        {% endif %}
+      </div>
+      <h3>{{ P.name }}</h3>
+      <div class="text-muted small mb-2">
+        {% if P.position %}{{ P.position }}{% endif %}
+        {% if S.team %} · {{ S.team }}{% endif %}
+      </div>
+      <div class="text-muted small">
+        {% if P.nationality %}{{ P.nationality }}{% endif %}
+        {% if P.dateOfBirth %} · {{ P.dateOfBirth|years_old }}y{% endif %}
+        {% if S.shirt %} · #{{ S.shirt }}{% endif %}
+      </div>
+      <div class="dk-cmp-card-badges">
+        <span class="dk-cmp-mini-chip"><i class="bi bi-bullseye"></i>{{ S.goals }} goals</span>
+        <span class="dk-cmp-mini-chip"><i class="bi bi-magic"></i>{{ S.assists }} assists</span>
+        {% if S.team %}<span class="dk-cmp-mini-chip"><i class="bi bi-shield"></i>{{ S.team }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="dk-cmp-stats mt-4 reveal in">
+    {% macro cmp_row(lbl, va, vb, higher_better=true) -%}
+      {% set _va = va or 0 %}{% set _vb = vb or 0 %}
+      {% set a_better = (_va > _vb) if higher_better else (_va < _vb) %}
+      {% set b_better = (_vb > _va) if higher_better else (_vb < _va) %}
+      <div class="dk-cmp-stat-row">
+        <div class="v left {{ 'win' if a_better else ('lose' if b_better else '') }}">{{ va or 0 }}</div>
+        <div class="lbl">{{ lbl }}</div>
+        <div class="v right {{ 'win' if b_better else ('lose' if a_better else '') }}">{{ vb or 0 }}</div>
+      </div>
+    {%- endmacro %}
+
+    {{ cmp_row('Goals', sa.goals, sb.goals) }}
+    {{ cmp_row('Assists', sa.assists, sb.assists) }}
+    {{ cmp_row('Penalties', sa.penalties, sb.penalties) }}
+    {{ cmp_row('Matches', sa.matches, sb.matches) }}
+
+    <div class="dk-cmp-stat-row">
+      <div class="v left small text-muted">{{ sa.league or '—' }}</div>
+      <div class="lbl">League</div>
+      <div class="v right small text-muted">{{ sb.league or '—' }}</div>
+    </div>
+    <div class="dk-cmp-stat-row">
+      <div class="v left small text-muted">{{ sa.team or '—' }}</div>
+      <div class="lbl">Club</div>
+      <div class="v right small text-muted">{{ sb.team or '—' }}</div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="dk-empty-state">
+    <span class="dk-empty-state-icon"><i class="bi bi-person-vcard"></i></span>
+    <div>
+      <p class="dk-empty-state-title">Choose two players to compare</p>
+      <p class="dk-empty-state-copy">The picker will stay DB-first, show portraits when available, and let you pin the duel for later.</p>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,136 @@
+{# player_stats_partial.html — Season stats widget for the player page #}
+{# Included when player_id is set. Loads season stats via JS. #}
+
+<div class="dk-season-stats-block mt-4" id="seasonStatsBlock">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <h2 class="h5 mb-0"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Season Statistics</h2>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <select class="form-select form-select-sm w-auto" id="seasonYearSelect">
+        {% set cur_year = current_year|int %}
+        {% for y in range(cur_year, cur_year - 4, -1) %}
+        <option value="{{ y }}">{{ y }}/{{ y+1 }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-outline-primary" id="loadSeasonStats">
+        <i class="bi bi-download me-1"></i>Load
+      </button>
+    </div>
+  </div>
+
+  <div id="seasonStatsResult">
+    <div class="alert alert-secondary d-flex align-items-center gap-2 mb-0">
+      <i class="bi bi-info-circle"></i>
+      <span>Select a season and click Load to fetch detailed statistics.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const playerId = {{ player_id | tojson }};
+  const loadBtn = document.getElementById('loadSeasonStats');
+  const result = document.getElementById('seasonStatsResult');
+  const yearSel = document.getElementById('seasonYearSelect');
+
+  if (!loadBtn) return;
+
+  loadBtn.addEventListener('click', async function() {
+    const year = yearSel.value;
+    loadBtn.disabled = true;
+    loadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading…';
+    result.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>';
+
+    try {
+      const res = await fetch(`/api/player/${playerId}/stats/${year}`);
+      const data = await res.json();
+      if (data.error) {
+        result.innerHTML = `<div class="alert alert-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>${data.error}</div>`;
+        return;
+      }
+      const s = data.stats || data;
+      if (!s || Object.keys(s).length === 0) {
+        result.innerHTML = '<div class="alert alert-secondary small mb-0">No statistics found for this season.</div>';
+        return;
+      }
+      result.innerHTML = renderStats(s, year);
+    } catch(e) {
+      result.innerHTML = `<div class="alert alert-danger small mb-0">Failed to load stats. ${e.message}</div>`;
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.innerHTML = '<i class="bi bi-download me-1"></i>Load';
+    }
+  });
+
+  function bar(val, max, color) {
+    const pct = max > 0 ? Math.min(100, Math.round(val / max * 100)) : 0;
+    return `<div class="progress" style="height:5px;border-radius:3px">
+      <div class="progress-bar bg-${color}" style="width:${pct}%"></div>
+    </div>`;
+  }
+
+  function renderStats(s, year) {
+    const rating = s.rating ? parseFloat(s.rating).toFixed(2) : '—';
+    const ratingColor = s.rating >= 7.5 ? '#16a34a' : s.rating >= 6.5 ? '#2f5dff' : '#f59e0b';
+    const passAcc = s.pass_accuracy ? parseFloat(s.pass_accuracy).toFixed(1) + '%' : '—';
+    return `
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="text-center p-3 rounded-3 border" style="background:linear-gradient(135deg,rgba(47,93,255,.06),rgba(139,92,246,.06))">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;background:linear-gradient(135deg,#2f5dff,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${s.goals ?? '—'}</div>
+          <div class="text-muted small">Goals</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-center p-3 rounded-3 border" style="background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.06))">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;color:#10b981">${s.assists ?? '—'}</div>
+          <div class="text-muted small">Assists</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-center p-3 rounded-3 border">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800">${s.appearances ?? '—'}</div>
+          <div class="text-muted small">Appearances</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="text-center p-3 rounded-3 border">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;color:${ratingColor}">${rating}</div>
+          <div class="text-muted small">Avg Rating</div>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mt-1">
+      <div class="col-md-6">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><td class="text-muted small">Minutes played</td><td class="text-end fw-semibold">${s.minutes_played != null ? s.minutes_played.toLocaleString() + ' min' : '—'}</td></tr>
+            <tr><td class="text-muted small">Shots total</td><td class="text-end fw-semibold">${s.shots_total ?? '—'}</td></tr>
+            <tr><td class="text-muted small">Shots on target</td><td class="text-end fw-semibold">${s.shots_on_target ?? '—'}</td></tr>
+            <tr><td class="text-muted small">Dribbles success</td><td class="text-end fw-semibold">${s.dribbles_success ?? '—'}</td></tr>
+            <tr><td class="text-muted small">Pass accuracy</td><td class="text-end fw-semibold">${passAcc}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col-md-6">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr>
+              <td class="text-muted small">Yellow cards</td>
+              <td class="text-end"><span class="badge" style="background:#ca8a04">${s.yellow_cards ?? 0}</span></td>
+            </tr>
+            <tr>
+              <td class="text-muted small">Red cards</td>
+              <td class="text-end"><span class="badge bg-danger">${s.red_cards ?? 0}</span></td>
+            </tr>
+            ${s.key_passes != null ? `<tr><td class="text-muted small">Key passes</td><td class="text-end fw-semibold">${s.key_passes}</td></tr>` : ''}
+            ${s.tackles_total != null ? `<tr><td class="text-muted small">Tackles</td><td class="text-end fw-semibold">${s.tackles_total}</td></tr>` : ''}
+            ${s.interceptions != null ? `<tr><td class="text-muted small">Interceptions</td><td class="text-end fw-semibold">${s.interceptions}</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ${s.team_name ? `<div class="text-muted small mt-2"><i class="bi bi-shield me-1"></i>Club: ${s.team_name} · Season ${year}/${parseInt(year)+1}</div>` : ''}
+    `;
+  }
+})();
+</script>

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Football news - {{ site_name }}{% endblock %}
+{% block content %}
+<section class="container py-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+      <li class="breadcrumb-item active">News</li>
+    </ol>
+  </nav>
+
+  <div class="d-flex align-items-end justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h1 class="display-6 fw-bold mb-1"><i class="bi bi-newspaper text-primary me-2"></i>Football news</h1>
+      {% set _active_meta = (news_competitions | selectattr('code', 'equalto', active_code) | list | first) if active_code else None %}
+      <p class="text-muted mb-0">
+        {% if _active_meta %}
+          Latest headlines for {{ _active_meta.name }}.
+        {% else %}
+          Latest headlines across all tracked leagues, mixed into one catalog feed.
+        {% endif %}
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      {% for c in news_competitions %}
+      <a href="{{ url_for('news_page', code=c.code) }}" class="chip-link {% if active_code == c.code %}chip-active{% endif %}">
+        <i class="bi bi-trophy me-1 text-primary"></i>{{ c.name }}
+      </a>
+      {% endfor %}
+      <a href="{{ url_for('news_page') }}" class="chip-link {% if not active_code %}chip-active{% endif %}">
+        <i class="bi bi-globe2 me-1 text-primary"></i>All leagues
+      </a>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-warning d-flex align-items-start gap-2">
+      <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+      <div>
+        <strong>News feed unavailable.</strong>
+        <div class="small">
+          {% if error_kind == 'subscription' %}
+            The RapidAPI key is not subscribed to football-news11 yet. Subscribe on
+            <a href="https://rapidapi.com/people-api-people-api-default/api/football-news11" target="_blank" rel="noopener">RapidAPI - football-news11</a>
+            and the feed will start populating automatically.
+          {% elif error_kind == 'no_key' %}
+            No RapidAPI key configured. Add <code>RAPIDAPI_FOOTBALL_NEWS_KEY</code> to your secrets.
+          {% elif error_kind == 'ratelimit' %}
+            Daily quota reached on the RapidAPI free tier. Headlines will reappear once it resets, or after plan upgrade.
+          {% else %}
+            {{ error }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% elif articles %}
+    <div class="news-grid">
+      {% for n in articles %}{% include "_news_card.html" %}{% endfor %}
+    </div>
+  {% else %}
+    <div class="dk-empty-state">
+      <span class="dk-empty-state-icon"><i class="bi bi-newspaper"></i></span>
+      <div>
+        <p class="dk-empty-state-title">No cached news available right now</p>
+        <p class="dk-empty-state-copy">The catalog has nothing stored for this view yet. Once headlines are synced again, they will stay visible offline here.</p>
+      </div>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

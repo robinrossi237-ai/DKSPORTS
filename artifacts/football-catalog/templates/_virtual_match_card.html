@@ -1,0 +1,123 @@
+{% set _comp = vm.get('competition', {}) %}
+{% set _played = vm.get('status') == 'played' or vm.get('status') == 'FINISHED' or (vm.get('home_score') is not none and vm.get('away_score') is not none) %}
+{% set _can_expand = _played and vm.get('detail_available') %}
+<article class="vls-match-shell{% if _played %} is-played{% else %} is-scheduled{% endif %}">
+  <div class="fx-card vls-fx-card{% if _can_expand %} is-expandable{% endif %}"
+       {% if _can_expand %}role="button" tabindex="0" data-vls-toggle aria-expanded="false"{% endif %}>
+    <div class="fx-header vls-fx-header">
+      <span class="fx-comp">
+        {% if _comp.get('emblem') %}<img src="{{ _comp.get('emblem') }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
+        {{ _comp.get('name') or league.name or 'Virtual League' }}
+      </span>
+      {% if vm.get('matchday') %}<span class="vls-md-pill">MD {{ vm.get('matchday') }}</span>{% endif %}
+    </div>
+
+    <div class="fx-row">
+      <div class="fx-team">
+        <div class="fx-crest">
+          {% if vm.get('home_crest') %}<img src="{{ img_url(vm.get('home_crest'), vm.get('home_crest')) }}" alt="{{ vm.get('home_team') }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.classList.remove('d-none')"><i class="bi bi-shield text-muted d-none"></i>{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}
+        </div>
+        <div class="fx-name">{{ vm.get('home_team') }}</div>
+        <div class="vls-team-sub">{{ vm.get('home_preview') or ('Ready to play' if not _played else 'No scorers yet') }}</div>
+      </div>
+
+      <div class="fx-center">
+        {% if _played %}
+          <div class="fx-score">{{ vm.get('home_score') }}<span class="fx-sep">-</span>{{ vm.get('away_score') }}</div>
+          <div class="fx-status-pill ft">FT</div>
+        {% else %}
+          <div class="fx-vs">VS</div>
+          <div class="fx-status-pill">{{ 'Ready to simulate' }}</div>
+        {% endif %}
+      </div>
+
+      <div class="fx-team">
+        <div class="fx-crest">
+          {% if vm.get('away_crest') %}<img src="{{ img_url(vm.get('away_crest'), vm.get('away_crest')) }}" alt="{{ vm.get('away_team') }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.classList.remove('d-none')"><i class="bi bi-shield text-muted d-none"></i>{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}
+        </div>
+        <div class="fx-name">{{ vm.get('away_team') }}</div>
+        <div class="vls-team-sub">{{ vm.get('away_preview') or ('Ready to play' if not _played else 'No scorers yet') }}</div>
+      </div>
+    </div>
+
+    <div class="vls-card-hint">
+      {% if _can_expand %}
+        <span>View scorers and match stats</span>
+        <i class="bi bi-chevron-down"></i>
+      {% elif _played %}
+        <span>Scorers and stats are not available for this match yet.</span>
+      {% else %}
+        <span>This fixture will be simulated in the next matchweek.</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if _can_expand %}
+  <div class="vls-fx-detail" hidden>
+    <div class="vls-detail-grid">
+      <div class="vls-detail-column">
+        <div class="vls-detail-team" style="color:var(--vls-primary)">{{ vm.get('home_team') }}</div>
+        {% for scorer in vm.get('home_scorers', []) %}
+        <div class="vls-goal-scorer">
+          <i class="bi bi-record-circle-fill"></i>
+          <span>{{ scorer.get('player') or scorer.get('player_name') }} {{ scorer.get('minute') }}'</span>
+          {% if scorer.get('assist') %}<span class="text-muted">({{ scorer.get('assist') }})</span>{% endif %}
+        </div>
+        {% endfor %}
+        {% if not vm.get('home_scorers') %}<div class="text-muted small">No goals</div>{% endif %}
+      </div>
+
+      <div class="vls-detail-column">
+        <div class="vls-detail-team" style="color:var(--vls-accent)">{{ vm.get('away_team') }}</div>
+        {% for scorer in vm.get('away_scorers', []) %}
+        <div class="vls-goal-scorer">
+          <i class="bi bi-record-circle-fill"></i>
+          <span>{{ scorer.get('player') or scorer.get('player_name') }} {{ scorer.get('minute') }}'</span>
+          {% if scorer.get('assist') %}<span class="text-muted">({{ scorer.get('assist') }})</span>{% endif %}
+        </div>
+        {% endfor %}
+        {% if not vm.get('away_scorers') %}<div class="text-muted small">No goals</div>{% endif %}
+      </div>
+    </div>
+
+    {% if vm.get('home_stats') or vm.get('away_stats') %}
+    {% set _home_stats = vm.get('home_stats', {}) %}
+    {% set _away_stats = vm.get('away_stats', {}) %}
+    {% set _home_shots = (_home_stats.get('shots', 0) if _home_stats else 0) | int %}
+    {% set _away_shots = (_away_stats.get('shots', 0) if _away_stats else 0) | int %}
+    {% set _home_sot = (_home_stats.get('shots_on_target', 0) if _home_stats else 0) | int %}
+    {% set _away_sot = (_away_stats.get('shots_on_target', 0) if _away_stats else 0) | int %}
+    <div class="vls-stats-grid">
+      <div class="vls-stat-summary">
+        <div class="vls-stat-chip">
+          <span>Total shots</span>
+          <strong>{{ _home_shots }} - {{ _away_shots }}</strong>
+        </div>
+        <div class="vls-stat-chip">
+          <span>On target</span>
+          <strong>{{ _home_sot }} - {{ _away_sot }}</strong>
+        </div>
+        <div class="vls-stat-chip">
+          <span>Shot accuracy</span>
+          <strong>{{ ((_home_sot / (_home_shots or 1)) * 100) | int }}% - {{ ((_away_sot / (_away_shots or 1)) * 100) | int }}%</strong>
+        </div>
+      </div>
+      {% for stat_key, label in [('possession', 'Possession'), ('shots', 'Shots'), ('shots_on_target', 'On target'), ('corners', 'Corners'), ('fouls', 'Fouls')] %}
+      {% set hv = (_home_stats.get(stat_key, 0) if _home_stats else 0) | int %}
+      {% set av = (_away_stats.get(stat_key, 0) if _away_stats else 0) | int %}
+      {% set total = hv + av if (hv + av) > 0 else 1 %}
+      <div class="vls-stat-row">
+        <span class="vls-stat-value vls-stat-value-home">{{ hv }}</span>
+        <div class="vls-stat-bar-track">
+          <div class="vls-stat-h" style="width:{{ (hv / total * 100) | int }}%"></div>
+          <div class="vls-stat-a" style="width:{{ (av / total * 100) | int }}%"></div>
+        </div>
+        <span class="vls-stat-value vls-stat-value-away">{{ av }}</span>
+        <span class="vls-stat-label">{{ label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>

@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% block title %}{{ competition.name }} · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="comp-hero">
+  <div class="container">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li><li class="breadcrumb-item"><a href="{{ url_for('competitions_page') }}">Competitions</a></li><li class="breadcrumb-item active">{{ competition.name }}</li></ol></nav>
+    <div class="row g-4 align-items-center">
+      <div class="col-auto">
+        <div class="comp-hero-emblem"><img src="{{ competition.emblem }}" alt="" onerror="this.style.display='none'" /></div>
+      </div>
+      <div class="col">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="text-muted small text-uppercase">{{ competition.area.name }}</div>
+          <button type="button" class="dk-fav-star dk-fav-star-sm ms-1" data-fav-toggle data-fav-kind="competitions"
+            data-fav-id="{{ competition.code }}" data-fav-name="{{ competition.name|e }}"
+            data-fav-meta="{{ competition.area.name|e }}"
+            data-fav-img="{{ competition.emblem or '' }}"
+            data-fav-href="{{ url_for('competition_detail', code=competition.code) }}"
+            aria-label="Favorite this league" title="Pin to favorites">
+            <i class="bi bi-star"></i><i class="bi bi-star-fill"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary dk-share-btn ms-1"
+            data-dk-share data-dk-share-title="{{ competition.name }} on DKSPORTS"
+            data-dk-share-text="Live standings, top scorers and fixtures for {{ competition.name }}.">
+            <i class="bi bi-share me-1"></i>Share
+          </button>
+        </div>
+        <h1 class="display-6 fw-bold mb-2 mt-1">{{ competition.name }}</h1>
+        <div class="d-flex flex-wrap gap-2 small text-muted">
+          {% if competition.code %}<span class="badge bg-dark-subtle text-body">{{ competition.code }}</span>{% endif %}
+          {% if competition.type %}<span class="badge bg-dark-subtle text-body">{{ competition.type }}</span>{% endif %}
+          {% if competition.currentSeason %}
+            <span><i class="bi bi-calendar-event me-1"></i>Season {{ competition.currentSeason.startDate[:4] }}/{{ competition.currentSeason.endDate[2:4] }}</span>
+            {% if competition.currentSeason.currentMatchday %}
+              <span><i class="bi bi-flag me-1"></i>Matchday {{ competition.currentSeason.currentMatchday }}</span>
+              <a href="{{ url_for('matchday_digest', code=competition.code, md=competition.currentSeason.currentMatchday) }}" class="badge bg-primary-subtle text-primary text-decoration-none ms-1" title="View Matchday {{ competition.currentSeason.currentMatchday }} digest">
+                <i class="bi bi-grid-3x2 me-1"></i>MD{{ competition.currentSeason.currentMatchday }} digest
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  <ul class="nav nav-pills gg-tabs mb-4" id="compTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-standings" type="button"><i class="bi bi-list-ol me-1"></i>Standings</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-scorers" type="button"><i class="bi bi-bullseye me-1"></i>Top Scorers</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-assists" type="button"><i class="bi bi-magic me-1"></i>Top Assists</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-cards" type="button"><i class="bi bi-square-fill me-1"></i>Most Cards</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-matches" type="button"><i class="bi bi-calendar2-week me-1"></i>Matches{% if all_matches_total %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:.65rem">{{ all_matches_total }}</span>{% endif %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-teams" type="button"><i class="bi bi-people me-1"></i>Teams</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-news" type="button"><i class="bi bi-newspaper me-1"></i>News</button></li>
+  </ul>
+
+  <div class="tab-content">
+    {# ---------------- Standings ---------------- #}
+    <div class="tab-pane fade show active" id="tab-standings">
+      {% if standings_data._error %}
+        <div class="alert alert-warning">Standings unavailable: {{ standings_data._error }}</div>
+      {% elif standings_data.standings %}
+        {% for st in standings_data.standings %}
+          {% if st.type == 'TOTAL' or loop.first %}
+          <div class="card surface-card mb-4">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+              <strong>{{ st.group or st.type|title }}</strong>
+              <span class="text-muted small">{{ st.table|length }} teams</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle gg-table mb-0">
+                <thead>
+                  <tr>
+                    <th class="text-center">#</th>
+                    <th>Team</th>
+                    <th class="text-center">P</th>
+                    <th class="text-center d-none d-md-table-cell">W</th>
+                    <th class="text-center d-none d-md-table-cell">D</th>
+                    <th class="text-center d-none d-md-table-cell">L</th>
+                    <th class="text-center d-none d-sm-table-cell">GF</th>
+                    <th class="text-center d-none d-sm-table-cell">GA</th>
+                    <th class="text-center">GD</th>
+                    <th class="text-center">Pts</th>
+                    <th class="text-center">Form</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in st.table %}
+                  <tr class="{{ 'qual-' + row._qual if row._qual else '' }}">
+                    <td class="text-center fw-semibold qual-cell">
+                      {% if row._qual %}<span class="qual-bar qual-bar-{{ row._qual }}" aria-hidden="true"></span>{% endif %}
+                      {{ row.position }}
+                    </td>
+                    <td>
+                      <a href="{{ url_for('team_detail', team_id=row.team.id) }}" class="d-flex align-items-center gap-2 text-decoration-none">
+                        <img src="{{ row.team.crest }}" alt="" width="24" height="24" onerror="this.style.display='none'" />
+                        <span class="text-body">{{ row.team.shortName or row.team.name }}</span>
+                      </a>
+                    </td>
+                    <td class="text-center">{{ row.playedGames }}</td>
+                    <td class="text-center d-none d-md-table-cell">{{ row.won }}</td>
+                    <td class="text-center d-none d-md-table-cell">{{ row.draw }}</td>
+                    <td class="text-center d-none d-md-table-cell">{{ row.lost }}</td>
+                    <td class="text-center d-none d-sm-table-cell">{{ row.goalsFor }}</td>
+                    <td class="text-center d-none d-sm-table-cell">{{ row.goalsAgainst }}</td>
+                    <td class="text-center {{ 'text-success' if row.goalDifference > 0 else ('text-danger' if row.goalDifference < 0 else 'text-muted') }}">{{ '+' if row.goalDifference > 0 else '' }}{{ row.goalDifference }}</td>
+                    <td class="text-center fw-bold">{{ row.points }}</td>
+                    <td class="text-center" style="white-space:nowrap">
+                      {% if row.form %}
+                        {% set _results = row.form.split(',') %}
+                        {% for r in _results[-5:] %}
+                          <span class="form-pill form-{{ r|trim|lower }}">{{ r|trim|upper }}</span>
+                        {% endfor %}
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        {% if qual_legend %}
+        <div class="qual-legend">
+          <div class="qual-legend-title"><i class="bi bi-info-circle me-1"></i>Legend</div>
+          <ul class="qual-legend-list">
+            {% for q in qual_legend %}
+              {% set lbl = qual_labels.get(q) %}
+              {% if lbl %}
+              <li><span class="qual-dot qual-bar-{{ q }}"></span>{{ lbl[0] }}</li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+        <div class="d-flex align-items-center gap-2 px-3 pb-3 pt-1 flex-wrap" style="font-size:.72rem;color:var(--bs-secondary)">
+          <span class="fw-semibold me-1">Form:</span>
+          <span><span class="form-pill form-w me-1">W</span>Win</span>
+          <span><span class="form-pill form-d me-1">D</span>Draw</span>
+          <span><span class="form-pill form-l me-1">L</span>Loss</span>
+          <span class="text-muted ms-1">(last 5 matches)</span>
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">No standings available for this competition.</div>
+      {% endif %}
+    </div>
+
+    {# ---------------- Scorers ---------------- #}
+    <div class="tab-pane fade" id="tab-scorers">
+      {% if scorers_data._error %}
+        <div class="alert alert-warning">Top scorers unavailable: {{ scorers_data._error }}</div>
+      {% elif scorers_data.scorers %}
+
+        {# ---- Top-5 race bar chart ---- #}
+        {% set top5 = scorers_data.scorers[:5] %}
+        {% set max_g = top5[0].goals or 1 %}
+        <div class="dk-race-block mb-4">
+          <div class="dk-race-title"><i class="bi bi-bar-chart-fill me-2 text-accent"></i>Top scorers race</div>
+          <div class="dk-race-bars">
+            {% for s in top5 %}
+            {% set pct = ((s.goals or 0) / max_g * 100)|round(1) %}
+            <div class="dk-race-row">
+              <div class="dk-race-rank">{{ loop.index }}</div>
+              <div class="dk-race-name text-truncate">
+                <span>{{ s.player.name }}</span>
+                <span class="text-muted small">· {{ s.team.shortName or s.team.name }}</span>
+              </div>
+              <div class="dk-race-bar-wrap">
+                <div class="dk-race-bar" style="width: {{ pct }}%"></div>
+                <span class="dk-race-val">{{ s.goals or 0 }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="row g-3 g-md-4">
+          {% for s in scorers_data.scorers %}
+          <div class="col-md-6 col-xl-4">
+            <div class="scorer-card">
+              <div class="scorer-rank">{{ loop.index }}</div>
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ s.player.name }}</div>
+                <div class="text-muted small">
+                  <a href="{{ url_for('team_detail', team_id=s.team.id) }}" class="text-reset text-decoration-none">{{ s.team.shortName or s.team.name }}</a>
+                </div>
+                <div class="d-flex gap-3 mt-2 small">
+                  <span><i class="bi bi-bullseye text-success me-1"></i><strong>{{ s.goals or 0 }}</strong> goals</span>
+                  {% if s.assists is not none %}<span><i class="bi bi-magic text-info me-1"></i><strong>{{ s.assists or 0 }}</strong> assists</span>{% endif %}
+                  {% if s.penalties is not none %}<span><i class="bi bi-dot text-warning me-1"></i><strong>{{ s.penalties or 0 }}</strong> pens</span>{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">No top scorers data for this competition.</div>
+      {% endif %}
+    </div>
+
+    {# ---------------- Top Assists ---------------- #}
+    <div class="tab-pane fade" id="tab-assists">
+      {% if assists_table %}
+        <div class="row g-3 g-md-4">
+          {% for s in assists_table %}
+          <div class="col-md-6 col-xl-4">
+            <a href="{% if s.player and s.player.id %}{{ url_for('player_detail', person_id=s.player.id) }}{% else %}{{ url_for('team_detail', team_id=s.team.id) }}{% endif %}" class="scorer-card text-decoration-none text-reset">
+              <div class="scorer-rank">{{ loop.index }}</div>
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ s.player.name }}</div>
+                <div class="text-muted small">{{ s.team.shortName or s.team.name }}</div>
+                <div class="d-flex gap-3 mt-2 small">
+                  <span><i class="bi bi-magic text-info me-1"></i><strong>{{ s.assists or 0 }}</strong> assists</span>
+                  {% if s.goals is not none %}<span><i class="bi bi-bullseye text-success me-1"></i><strong>{{ s.goals or 0 }}</strong> G</span>{% endif %}
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary"><i class="bi bi-info-circle me-1"></i>Assists data isn't available for this competition.</div>
+      {% endif %}
+    </div>
+
+    {# ---------------- Most Cards ---------------- #}
+    <div class="tab-pane fade" id="tab-cards">
+      {% if cards_table %}
+        <div class="row g-3 g-md-4">
+          {% for s in cards_table %}
+          <div class="col-md-6 col-xl-4">
+            <a href="{% if s.player and s.player.id %}{{ url_for('player_detail', person_id=s.player.id) }}{% else %}{{ url_for('team_detail', team_id=s.team.id) }}{% endif %}" class="scorer-card text-decoration-none text-reset">
+              <div class="scorer-rank">{{ loop.index }}</div>
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ s.player.name }}</div>
+                <div class="text-muted small">{{ s.team.shortName or s.team.name }}</div>
+                <div class="d-flex gap-2 mt-2 small align-items-center">
+                  <span class="dk-card-pill dk-card-yellow">{{ s.yellow or 0 }}Y</span>
+                  <span class="dk-card-pill dk-card-red">{{ s.red or 0 }}R</span>
+                  <span class="text-muted">· <strong>{{ s.total or 0 }}</strong> total</span>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary"><i class="bi bi-info-circle me-1"></i>Cards leaderboard isn't available for this competition (requires the API-Football provider).</div>
+      {% endif %}
+    </div>
+
+    {# ---------------- Matches ---------------- #}
+    <div class="tab-pane fade" id="tab-matches">
+      {% if matchday_archive %}
+      <div class="card surface-card mb-4">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <strong><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Matchday Archive</strong>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="competitionShowOdds" data-setting="show-odds" checked>
+            <label class="form-check-label small text-muted" for="competitionShowOdds">Show odds</label>
+          </div>
+          <span class="text-muted small">{{ finished_matches_total }} played • {{ scheduled_matches_total }} upcoming/live • {{ all_matches_total }} total</span>
+        </div>
+        <div class="card-body pt-0">
+          <div class="row g-2">
+            {% for md in matchday_archive %}
+            <div class="col-6 col-md-4 col-xl-3">
+              <a href="{{ url_for('matchday_digest', code=competition.code, md=md.matchday) }}" class="text-decoration-none">
+                <div class="border rounded-3 p-3 h-100">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">Matchday {{ md.matchday }}</div>
+                      <div class="text-muted small">
+                        {% if md.first_date %}{{ md.first_date|fmt_dmy }}{% endif %}
+                        {% if md.last_date and md.last_date != md.first_date %} • {{ md.last_date|fmt_dmy }}{% endif %}
+                      </div>
+                    </div>
+                    {% if competition.currentSeason and competition.currentSeason.currentMatchday == md.matchday %}
+                    <span class="badge bg-primary-subtle text-primary">Current</span>
+                    {% elif md.state == 'complete' %}
+                    <span class="badge bg-success-subtle text-success">Done</span>
+                    {% elif md.state == 'live' %}
+                    <span class="badge bg-danger-subtle text-danger">Live</span>
+                    {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary">Upcoming</span>
+                    {% endif %}
+                  </div>
+                  <div class="small mt-2 text-body">
+                    <strong>{{ md.total }}</strong> matches
+                  </div>
+                  <div class="small text-muted">
+                    {{ md.finished }}/{{ md.total }} played
+                    {% if md.live %} • {{ md.live }} live{% elif md.scheduled %} • {{ md.scheduled }} left{% endif %}
+                  </div>
+                </div>
+              </a>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <ul class="nav nav-tabs gg-subtabs mb-3">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#sub-upcoming">Upcoming</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#sub-recent">Recent</button></li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="sub-upcoming">
+          {% if matches_scheduled %}
+            <div class="match-list">
+              {% for m in matches_scheduled %}{% include "_match_row.html" %}{% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-secondary">No upcoming matches scheduled.</div>
+          {% endif %}
+        </div>
+        <div class="tab-pane fade" id="sub-recent">
+          {% if matches_finished %}
+            <div class="match-list">
+              {% for m in matches_finished %}{% include "_match_row.html" %}{% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-secondary">No recent results.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ---------------- News ---------------- #}
+    <div class="tab-pane fade" id="tab-news">
+      {% if news_error %}
+        <div class="alert alert-warning d-flex align-items-start gap-2">
+          <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+          <div>
+            <strong>News feed unavailable.</strong>
+            <div class="small">
+              {% if news_error_kind == 'subscription' %}
+                Subscribe to football-news11 on RapidAPI to enable news.
+              {% elif news_error_kind == 'no_key' %}
+                No news API key configured.
+              {% else %}{{ news_error }}{% endif %}
+            </div>
+          </div>
+        </div>
+      {% elif news_articles %}
+        <div class="news-grid">
+          {% for n in news_articles %}{% include "_news_card.html" %}{% endfor %}
+        </div>
+        <div class="text-end mt-3"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('news_page', code=competition.code) }}">More news <i class="bi bi-arrow-right ms-1"></i></a></div>
+      {% else %}
+        <div class="alert alert-secondary">No news available for this competition right now.</div>
+      {% endif %}
+    </div>
+
+    {# ---------------- Teams ---------------- #}
+    <div class="tab-pane fade" id="tab-teams">
+      {% if teams_data._error %}
+        <div class="alert alert-warning">Teams unavailable: {{ teams_data._error }}</div>
+      {% elif teams_data.teams %}
+        <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
+          <div class="text-muted small">{{ teams_data.teams|length }} teams</div>
+          <div class="gg-search gg-search-pill" style="max-width:280px;">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+              <input id="teamFilter" type="search" class="form-control border-start-0" placeholder="Filter teams…" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+        <div class="row g-3" id="teamsGrid">
+          {% for t in teams_data.teams %}
+          <div class="col-6 col-md-4 col-lg-3 team-card-wrap" data-name="{{ (t.name or '')|lower }}">
+            <a href="{{ url_for('team_detail', team_id=t.id) }}" class="team-card text-decoration-none">
+              <div class="team-crest"><img src="{{ t.crest }}" alt="" loading="lazy" onerror="this.style.display='none'" /></div>
+              <div class="text-center mt-2">
+                <div class="fw-semibold">{{ t.shortName or t.name }}</div>
+                <div class="text-muted small">{{ t.area.name or '' }}</div>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-secondary">No teams available.</div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function(){
+    const f = document.getElementById('teamFilter');
+    if (!f) return;
+    f.addEventListener('input', () => {
+      const q = (f.value||'').toLowerCase();
+      document.querySelectorAll('.team-card-wrap').forEach(c => {
+        c.style.display = !q || c.dataset.name.includes(q) ? '' : 'none';
+      });
+    });
+  })();
+</script>
+{% endblock %}

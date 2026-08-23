@@ -1,0 +1,280 @@
+{# shotmap_partial.html — included by match.html when shotmap data is available #}
+{# Usage: {% include 'shotmap_partial.html' %} after passing shotmap_data to render_template #}
+
+<div class="match-detail-card mt-4" id="shotmap-section">
+  <h3 class="h5 mb-3">
+    <i class="bi bi-crosshair2 me-2 text-primary"></i>Shot Map
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2" style="font-size:.72rem">
+      powered by footapi7
+    </span>
+  </h3>
+
+  <!-- Filter bar -->
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Team filter">
+      <input type="radio" class="btn-check" name="sm-team" id="sm-all" value="all" checked>
+      <label class="btn btn-outline-primary" for="sm-all">All shots</label>
+      <input type="radio" class="btn-check" name="sm-team" id="sm-home" value="home">
+      <label class="btn btn-outline-primary" for="sm-home">
+        {{ match.homeTeam.shortName or match.homeTeam.name }}
+      </label>
+      <input type="radio" class="btn-check" name="sm-team" id="sm-away" value="away">
+      <label class="btn btn-outline-primary" for="sm-away">
+        {{ match.awayTeam.shortName or match.awayTeam.name }}
+      </label>
+    </div>
+
+    <div class="btn-group btn-group-sm" role="group" aria-label="Shot type filter">
+      <input type="radio" class="btn-check" name="sm-type" id="smt-all" value="all" checked>
+      <label class="btn btn-outline-secondary" for="smt-all">All types</label>
+      <input type="radio" class="btn-check" name="sm-type" id="smt-goal" value="goal">
+      <label class="btn btn-outline-secondary" for="smt-goal">⚽ Goals</label>
+      <input type="radio" class="btn-check" name="sm-type" id="smt-save" value="save">
+      <label class="btn btn-outline-secondary" for="smt-save">🧤 Saves</label>
+      <input type="radio" class="btn-check" name="sm-type" id="smt-miss" value="miss">
+      <label class="btn btn-outline-secondary" for="smt-miss">🚀 Misses</label>
+    </div>
+  </div>
+
+  <!-- Pitch SVG -->
+  <div class="shotmap-pitch-wrap">
+    <svg id="shotmap-svg" viewBox="0 0 100 68" xmlns="http://www.w3.org/2000/svg"
+      style="width:100%;max-width:700px;display:block;margin:0 auto;border-radius:.75rem;overflow:visible">
+
+      <!-- Pitch background -->
+      <defs>
+        <linearGradient id="pitchGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#1a5c2d"/>
+          <stop offset="50%" stop-color="#1e6b34"/>
+          <stop offset="100%" stop-color="#1a5c2d"/>
+        </linearGradient>
+        <!-- Stripe pattern -->
+        <pattern id="stripes" patternUnits="userSpaceOnUse" width="10" height="68" patternTransform="rotate(0)">
+          <rect width="5" height="68" fill="rgba(255,255,255,.03)"/>
+        </pattern>
+      </defs>
+
+      <!-- Field -->
+      <rect width="100" height="68" fill="url(#pitchGrad)" rx="1.5"/>
+      <rect width="100" height="68" fill="url(#stripes)" rx="1.5"/>
+
+      <!-- Pitch markings -->
+      <!-- Outer border -->
+      <rect x="2" y="2" width="96" height="64" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Center circle -->
+      <circle cx="50" cy="34" r="9.15" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <circle cx="50" cy="34" r=".5" fill="rgba(255,255,255,.6)"/>
+      <!-- Center line -->
+      <line x1="50" y1="2" x2="50" y2="66" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+
+      <!-- Left penalty area -->
+      <rect x="2" y="13.84" width="16.5" height="40.32" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Left 6-yard box -->
+      <rect x="2" y="24.84" width="5.5" height="18.32" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Left penalty spot -->
+      <circle cx="13.6" cy="34" r=".4" fill="rgba(255,255,255,.6)"/>
+      <!-- Left penalty arc -->
+      <path d="M 16.5 28 A 9.15 9.15 0 0 1 16.5 40" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Left goal -->
+      <rect x="0.5" y="29.5" width="1.5" height="9" fill="none" stroke="rgba(255,255,255,.7)" stroke-width=".5"/>
+
+      <!-- Right penalty area -->
+      <rect x="81.5" y="13.84" width="16.5" height="40.32" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Right 6-yard box -->
+      <rect x="92.5" y="24.84" width="5.5" height="18.32" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Right penalty spot -->
+      <circle cx="86.4" cy="34" r=".4" fill="rgba(255,255,255,.6)"/>
+      <!-- Right penalty arc -->
+      <path d="M 83.5 28 A 9.15 9.15 0 0 0 83.5 40" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".4"/>
+      <!-- Right goal -->
+      <rect x="98" y="29.5" width="1.5" height="9" fill="none" stroke="rgba(255,255,255,.7)" stroke-width=".5"/>
+
+      <!-- Corner arcs -->
+      <path d="M 2 3.5 A 1.5 1.5 0 0 0 3.5 2" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".35"/>
+      <path d="M 96.5 2 A 1.5 1.5 0 0 0 98 3.5" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".35"/>
+      <path d="M 2 64.5 A 1.5 1.5 0 0 1 3.5 66" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".35"/>
+      <path d="M 96.5 66 A 1.5 1.5 0 0 1 98 64.5" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".35"/>
+
+      <!-- Team labels -->
+      <text x="25" y="7" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="2" font-family="Inter, sans-serif">
+        {{ match.homeTeam.shortName or match.homeTeam.name }}
+      </text>
+      <text x="75" y="7" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="2" font-family="Inter, sans-serif">
+        {{ match.awayTeam.shortName or match.awayTeam.name }}
+      </text>
+
+      <!-- Shot markers group — populated by JS -->
+      <g id="shot-markers"></g>
+    </svg>
+
+    <!-- Tooltip -->
+    <div id="sm-tooltip" class="sm-tooltip" style="display:none;position:absolute;z-index:100;pointer-events:none;"></div>
+  </div>
+
+  <!-- Legend -->
+  <div class="d-flex flex-wrap gap-3 justify-content-center mt-2 mb-3" style="font-size:.78rem">
+    <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#22c55e" stroke="#16a34a" stroke-width="1.5"/></svg> Goal</span>
+    <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/></svg> Saved</span>
+    <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#ef4444" stroke="#dc2626" stroke-width="1.5"/></svg> Miss</span>
+    <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/></svg> Blocked</span>
+    <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#a855f7" stroke="#9333ea" stroke-width="1.5"/></svg> Post</span>
+    <span class="ms-2 text-muted">Home = left half · Away = right half</span>
+  </div>
+
+  <!-- Stats row -->
+  {% if shotmap_data %}
+  {% set stats = shotmap_data.stats %}
+  <div class="row g-2 text-center mt-1">
+    {% set stat_cols = [
+      ('Total shots', stats.total, stats.home_total, stats.away_total, 'bi-record-circle'),
+      ('Goals', stats.goals, stats.home_goals, stats.away_goals, 'bi-record-fill'),
+      ('Saves', stats.saves, '-', '-', 'bi-hand-index-thumb'),
+      ('Misses', stats.misses, '-', '-', 'bi-x-circle'),
+      ('Blocks', stats.blocks, '-', '-', 'bi-shield-fill'),
+      ('Headers', stats.headers, '-', '-', 'bi-person-arms-up'),
+      ('Set pieces', stats.from_set_piece, '-', '-', 'bi-flag'),
+      ('Penalties', stats.penalties, '-', '-', 'bi-dot'),
+    ] %}
+    {% for label, total, home, away, icon in stat_cols %}
+    <div class="col-6 col-sm-4 col-md-3">
+      <div class="p-2 rounded-3" style="background:rgba(47,93,255,.05);border:1px solid rgba(47,93,255,.1)">
+        <div class="small fw-bold">{{ total }}</div>
+        <div class="text-muted" style="font-size:.72rem"><i class="bi {{ icon }} me-1"></i>{{ label }}</div>
+        {% if home != '-' and away != '-' %}
+        <div class="text-muted" style="font-size:.68rem">H:{{ home }} A:{{ away }}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.shotmap-pitch-wrap { position: relative; }
+.sm-tooltip {
+  background: rgba(5,10,30,.9);
+  color: #fff;
+  border-radius: .5rem;
+  padding: .5rem .75rem;
+  font-size: .78rem;
+  max-width: 200px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.15);
+  line-height: 1.5;
+}
+[data-bs-theme="dark"] .sm-tooltip { background: rgba(20,30,60,.95); }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  const shots = {{ shotmap_data.shots | tojson }};
+  const g = document.getElementById("shot-markers");
+  const tooltip = document.getElementById("sm-tooltip");
+  const svgEl = document.getElementById("shotmap-svg");
+
+  const COLOR_MAP = {
+    goal: { fill: "#22c55e", stroke: "#16a34a" },
+    save: { fill: "#fbbf24", stroke: "#d97706" },
+    miss: { fill: "#ef4444", stroke: "#dc2626" },
+    block: { fill: "#f97316", stroke: "#ea580c" },
+    post: { fill: "#a855f7", stroke: "#9333ea" },
+  };
+  const BODY_ICONS = { "right-foot": "👟", "left-foot": "🦶", head: "🤯" };
+  const SIT_LABELS = {
+    regular: "Open play", assisted: "Assisted", "set-piece": "Set piece",
+    penalty: "Penalty", "free-kick": "Free kick", "fast-break": "Counter-attack",
+    corner: "Corner"
+  };
+
+  function renderShots(filter_team, filter_type) {
+    g.innerHTML = "";
+    shots.forEach(s => {
+      if (filter_team === "home" && !s.is_home) return;
+      if (filter_team === "away" && s.is_home) return;
+      if (filter_type !== "all" && s.type !== filter_type) return;
+
+      // Coordinates from API: x=0-100 (left=home goal, right=away goal), y=0-100 (bottom to top)
+      // But home shots attack RIGHT goal, away shots attack LEFT goal.
+      // To always show home in left half and away in right half, mirror away shots.
+      let px = s.coords.x || 50;
+      let py = s.coords.y || 50;
+
+      // API coords: x (0-100) along pitch length, y (0-100) across width
+      // SVG viewBox: 100 wide, 68 tall. Scale y: 0-100 → 0-68
+      let svgX = (px / 100) * 100;   // stays 0-100
+      let svgY = (py / 100) * 68;    // 0-68
+
+      // Mirror away shots to show attacking right → they come from the right
+      if (!s.is_home) {
+        svgX = 100 - svgX;
+        svgY = 68 - svgY;
+      }
+
+      const col = COLOR_MAP[s.type] || COLOR_MAP.miss;
+      const isGoal = s.type === "goal";
+      const r = isGoal ? 2.5 : 2.0;
+
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", svgX.toFixed(2));
+      circle.setAttribute("cy", svgY.toFixed(2));
+      circle.setAttribute("r", r);
+      circle.setAttribute("fill", col.fill);
+      circle.setAttribute("stroke", col.stroke);
+      circle.setAttribute("stroke-width", ".8");
+      circle.setAttribute("opacity", isGoal ? "1" : ".85");
+      circle.style.cursor = "pointer";
+      if (isGoal) {
+        circle.setAttribute("filter", "drop-shadow(0 0 2px " + col.fill + ")");
+      }
+      circle.dataset.shot = JSON.stringify(s);
+      g.appendChild(circle);
+    });
+
+    // Attach tooltip events
+    g.querySelectorAll("circle").forEach(el => {
+      el.addEventListener("mouseenter", function(e){ showTooltip(e, JSON.parse(this.dataset.shot)); });
+      el.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+      el.addEventListener("mousemove", positionTooltip);
+    });
+  }
+
+  function showTooltip(e, s) {
+    const bodyIcon = BODY_ICONS[s.body_part] || "⚽";
+    const sitLabel = SIT_LABELS[s.situation] || s.situation || "";
+    const typeLabel = s.type.charAt(0).toUpperCase() + s.type.slice(1);
+    const min = s.time ? (s.added_time ? s.time + "+" + s.added_time + "'" : s.time + "'") : "";
+    tooltip.innerHTML = `
+      <div class="fw-bold mb-1">${s.player || "Unknown"}</div>
+      <div>${bodyIcon} ${typeLabel}${min ? " · " + min : ""}</div>
+      ${sitLabel ? `<div class="text-muted" style="font-size:.72rem">${sitLabel}</div>` : ""}
+      ${s.jersey ? `<div class="text-muted" style="font-size:.7rem">#${s.jersey} · ${s.position || ""}</div>` : ""}
+    `;
+    tooltip.style.display = "block";
+    positionTooltip(e);
+  }
+
+  function positionTooltip(e) {
+    const wrap = document.querySelector(".shotmap-pitch-wrap");
+    const rect = wrap.getBoundingClientRect();
+    let x = e.clientX - rect.left + 12;
+    let y = e.clientY - rect.top + 12;
+    if (x + 200 > rect.width) x -= 220;
+    tooltip.style.left = x + "px";
+    tooltip.style.top = y + "px";
+  }
+
+  // Filter controls
+  let activeTeam = "all", activeType = "all";
+
+  document.querySelectorAll("input[name='sm-team']").forEach(inp => {
+    inp.addEventListener("change", function(){ activeTeam = this.value; renderShots(activeTeam, activeType); });
+  });
+  document.querySelectorAll("input[name='sm-type']").forEach(inp => {
+    inp.addEventListener("change", function(){ activeType = this.value; renderShots(activeTeam, activeType); });
+  });
+
+  renderShots("all", "all");
+})();
+</script>

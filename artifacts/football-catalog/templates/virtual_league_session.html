@@ -1,0 +1,2128 @@
+{% extends "base.html" %}
+{% set played_matchdays = played_matchdays|default(session.get('played_matchdays', (session.get('current_matchday', 1) - 1))) %}
+{% set current_matchday = current_matchday|default(session.get('current_matchday', 1)) %}
+{% set progress_pct = progress_pct|default(session.get('progress_pct', ((played_matchdays / (session.total_matchdays or 1)) * 100) | int)) %}
+{% block title %}{{ session.display_name }} - {{ league.name }} Virtual Season - {{ site_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.vls-shell {
+  --vls-primary: {{ league.color }};
+  --vls-accent: {{ league.accent }};
+  --vls-accent-soft: color-mix(in srgb, var(--vls-accent) 12%, transparent);
+  --vls-primary-soft: color-mix(in srgb, var(--vls-primary) 10%, transparent);
+}
+.vls-hero {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  padding: 2.4rem 0 2rem;
+  background: linear-gradient(135deg, var(--vls-primary), var(--vls-accent));
+}
+.vls-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% 24%, rgba(255,255,255,0.16), transparent 40%),
+    radial-gradient(circle at 85% 16%, rgba(255,255,255,0.14), transparent 38%);
+  pointer-events: none;
+}
+.vls-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 3vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+.vls-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.86;
+}
+.vls-league-logo {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  border-radius: 1rem;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.22);
+  padding: 0.45rem;
+}
+.vls-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.52rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.16);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.vls-progress {
+  width: min(360px, 100%);
+  height: 8px;
+  margin-top: 0.9rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.16);
+  overflow: hidden;
+}
+.vls-progress-fill {
+  height: 100%;
+  width: 0;
+  background: rgba(255,255,255,0.9);
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+.vls-hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.vls-hero-actions .btn {
+  border-radius: 999px;
+}
+.vls-tab-bar {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  background: var(--dk-surface, #fff);
+  border-bottom: 1px solid var(--dk-border, #e2e8f0);
+  box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.32);
+}
+[data-bs-theme="dark"] .vls-tab-bar {
+  background: #0a101f;
+  border-color: #1e2d4a;
+}
+.vls-tab-bar .nav-tabs {
+  border: 0;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0.2rem 0;
+}
+.vls-tab-bar .nav-tabs::-webkit-scrollbar {
+  display: none;
+}
+.vls-tab-bar .nav-link {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--bs-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-radius: 0;
+  white-space: nowrap;
+  padding: 0.95rem 1rem 0.85rem;
+}
+.vls-tab-bar .nav-link:hover {
+  color: var(--bs-body-color);
+}
+.vls-tab-bar .nav-link.active {
+  color: var(--vls-primary);
+  border-bottom-color: var(--vls-primary);
+  background: transparent;
+}
+.vls-panel {
+  background: var(--dk-surface, #fff);
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: 1.25rem;
+  box-shadow: var(--dk-shadow-sm);
+}
+[data-bs-theme="dark"] .vls-panel {
+  background: #0f1629;
+  border-color: #1e2d4a;
+}
+.vls-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--dk-border, #eef2f7);
+}
+[data-bs-theme="dark"] .vls-panel-header {
+  border-color: #1e2d4a;
+}
+.vls-panel-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.vls-play-panel-body {
+  padding: 1.2rem;
+}
+.vls-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  background: var(--vls-primary-soft);
+  color: var(--vls-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.vls-play-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.vls-play-copy {
+  color: var(--bs-secondary);
+  font-size: 0.92rem;
+  margin-bottom: 0;
+}
+.vls-play-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.1rem;
+}
+.vls-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.88rem 1.35rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--vls-primary), var(--vls-accent));
+  color: #fff;
+  box-shadow: 0 16px 32px -24px color-mix(in srgb, var(--vls-primary) 55%, transparent);
+}
+.vls-play-btn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+.vls-play-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.vls-play-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.82rem 1.2rem;
+  border: 1px solid var(--dk-border, #d9e2ec);
+  background: transparent;
+  font-weight: 700;
+}
+.vls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1rem;
+}
+.vls-match-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.vls-fx-card {
+  cursor: default;
+  gap: 0.8rem;
+  border-radius: 1.1rem;
+}
+.vls-fx-card.is-expandable {
+  cursor: pointer;
+}
+.vls-fx-card.is-expandable:hover {
+  border-color: color-mix(in srgb, var(--vls-primary) 35%, var(--dk-border, #e2e8f0));
+  box-shadow: 0 16px 32px -18px color-mix(in srgb, var(--vls-primary) 22%, transparent);
+}
+.vls-fx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  text-align: left;
+}
+.vls-fx-card .fx-crest {
+  width: 64px;
+  height: 64px;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.94));
+  border: 1px solid rgba(148,163,184,0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 20px -18px rgba(15,23,42,0.45);
+}
+.vls-fx-card .fx-crest img {
+  max-width: 84%;
+  max-height: 84%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(15,23,42,0.18));
+}
+[data-bs-theme="dark"] .vls-fx-card .fx-crest img {
+  filter: drop-shadow(0 5px 12px rgba(15,23,42,0.28));
+}
+[data-bs-theme="dark"] .vls-fx-card .fx-crest {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(226,232,240,0.94));
+  border-color: rgba(148,163,184,0.26);
+}
+.vls-fx-card .fx-score {
+  color: var(--vls-primary);
+}
+.vls-fx-card .fx-status-pill {
+  background: color-mix(in srgb, var(--vls-primary) 10%, white);
+  color: var(--vls-primary);
+}
+.vls-fx-card .fx-status-pill.ft {
+  background: color-mix(in srgb, var(--vls-primary) 14%, white);
+  color: var(--vls-primary);
+}
+.vls-md-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: var(--vls-primary-soft);
+  color: var(--vls-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.vls-team-sub {
+  font-size: 0.72rem;
+  color: var(--bs-secondary);
+  text-align: center;
+  min-height: 2.1em;
+  line-height: 1.4;
+}
+.vls-card-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-top: 0.2rem;
+  color: var(--bs-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.vls-card-hint i {
+  transition: transform 0.2s ease;
+}
+.vls-match-shell.is-open .vls-card-hint i {
+  transform: rotate(180deg);
+}
+.vls-fx-detail {
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-top: 0;
+  border-radius: 0 0 1rem 1rem;
+  padding: 1rem 1rem 0.9rem;
+  background: var(--dk-surface, #fff);
+}
+[data-bs-theme="dark"] .vls-fx-detail {
+  background: #0f1629;
+  border-color: #1e2d4a;
+}
+.vls-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.vls-detail-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.vls-detail-team {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.vls-goal-scorer {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.vls-goal-scorer i {
+  color: var(--vls-primary);
+  font-size: 0.72rem;
+}
+.vls-stats-grid {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.vls-stat-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.vls-stat-chip {
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.75rem;
+  background: color-mix(in srgb, var(--vls-primary) 4%, var(--dk-surface, #fff));
+}
+[data-bs-theme="dark"] .vls-stat-chip {
+  border-color: #1e2d4a;
+  background: rgba(255,255,255,0.03);
+}
+.vls-stat-chip span {
+  display: block;
+  color: var(--bs-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.vls-stat-chip strong {
+  display: block;
+  margin-top: 0.18rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+.vls-stat-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px 86px;
+  gap: 0.55rem;
+  align-items: center;
+}
+.vls-stat-bar-track {
+  display: flex;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.08);
+  height: 8px;
+  border-radius: 999px;
+}
+[data-bs-theme="dark"] .vls-stat-bar-track {
+  background: rgba(255,255,255,0.09);
+}
+.vls-stat-h,
+.vls-stat-a {
+  height: 100%;
+}
+.vls-stat-h {
+  background: var(--vls-primary);
+}
+.vls-stat-a {
+  background: var(--vls-accent);
+}
+.vls-stat-value {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.vls-stat-value-home {
+  text-align: right;
+  color: var(--vls-primary);
+}
+.vls-stat-value-away {
+  color: var(--vls-accent);
+}
+.vls-stat-label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary);
+}
+.vls-summary-card {
+  padding: 1.1rem 1.2rem;
+}
+.vls-summary-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.vls-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.88rem;
+}
+.vls-summary-label {
+  color: var(--bs-secondary);
+}
+.vls-summary-strong {
+  font-weight: 800;
+}
+.vls-mini-table .table,
+.vls-full-table .table {
+  margin-bottom: 0;
+}
+.vls-mini-table td,
+.vls-mini-table th,
+.vls-full-table td,
+.vls-full-table th {
+  font-size: 0.8rem;
+}
+.vls-mini-table td:first-child,
+.vls-full-table td:first-child {
+  white-space: nowrap;
+}
+.vls-mini-table .text-truncate,
+.vls-full-table .text-truncate {
+  max-width: 140px;
+}
+.vls-scorer-list {
+  padding: 0.55rem 1.1rem 1rem;
+}
+.vls-scorer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--dk-border, #eef2f7);
+}
+.vls-scorer-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+[data-bs-theme="dark"] .vls-scorer-row {
+  border-color: #1e2d4a;
+}
+.vls-scorer-rank {
+  width: 24px;
+  color: var(--bs-secondary);
+  font-weight: 800;
+  font-size: 0.76rem;
+  text-align: right;
+}
+.vls-scorer-goals {
+  min-width: 32px;
+  padding: 0.2rem 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--vls-primary), var(--vls-accent));
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-align: center;
+}
+.vls-goals-chart {
+  padding: 0.4rem 1.1rem 1.1rem;
+}
+.vls-chart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+.vls-chart-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.vls-chart-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+[data-bs-theme="dark"] .vls-chart-bar {
+  background: rgba(255,255,255,0.08);
+}
+.vls-chart-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--vls-primary), var(--vls-accent));
+}
+.vls-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  text-align: center;
+  color: var(--bs-secondary);
+  padding: 1.5rem;
+}
+.vls-empty i {
+  font-size: 1.8rem;
+  margin-bottom: 0.65rem;
+}
+.vls-md-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.vls-md-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.7rem;
+  border: 1px solid var(--dk-border, #dbe2ea);
+  background: transparent;
+  color: var(--bs-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.vls-md-btn.played {
+  border-color: color-mix(in srgb, var(--vls-primary) 30%, #dbe2ea);
+  color: var(--vls-primary);
+}
+.vls-md-btn.active-md {
+  background: var(--vls-primary);
+  border-color: var(--vls-primary);
+  color: #fff;
+}
+.vls-md-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+.vls-md-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+[data-bs-theme="dark"] .vls-md-progress {
+  background: rgba(255,255,255,0.08);
+}
+.vls-md-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--vls-primary), var(--vls-accent));
+}
+.vls-team-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.vls-team-list {
+  display: grid;
+  gap: 0.85rem;
+}
+.vls-team-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--dk-border, #e2e8f0);
+  border-radius: 1.1rem;
+  background: var(--dk-surface, #fff);
+  padding: 1rem 1rem 0.95rem;
+  box-shadow: var(--dk-shadow-sm);
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.vls-team-card:hover,
+.vls-team-card.is-active {
+  border-color: color-mix(in srgb, var(--vls-primary) 35%, var(--dk-border, #e2e8f0));
+  box-shadow: 0 18px 32px -24px color-mix(in srgb, var(--vls-primary) 28%, transparent);
+  transform: translateY(-1px);
+}
+[data-bs-theme="dark"] .vls-team-card {
+  background: #0f1629;
+  border-color: #1e2d4a;
+}
+.vls-team-card .fx-crest {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.94));
+  border: 1px solid rgba(148,163,184,0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 10px 20px -18px rgba(15,23,42,0.45);
+}
+.vls-team-card .fx-crest img {
+  max-width: 84%;
+  max-height: 84%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(15,23,42,0.18));
+}
+.vls-team-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+.vls-team-stat {
+  border-radius: 0.9rem;
+  border: 1px solid var(--dk-border, #edf2f7);
+  background: color-mix(in srgb, var(--vls-primary) 4%, var(--dk-surface, #fff));
+  padding: 0.6rem 0.7rem;
+}
+[data-bs-theme="dark"] .vls-team-stat {
+  border-color: #1e2d4a;
+  background: rgba(255,255,255,0.03);
+}
+.vls-team-stat span {
+  display: block;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bs-secondary);
+  font-weight: 700;
+}
+.vls-team-stat strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.92rem;
+  margin-top: 0.1rem;
+}
+.vls-team-detail {
+  position: sticky;
+  top: 88px;
+  overflow: hidden;
+}
+.vls-team-detail-body {
+  padding: 1rem 1.1rem 1.1rem;
+}
+.vls-team-detail-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+.vls-team-detail-top .fx-crest {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.94));
+  border: 1px solid rgba(148,163,184,0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 12px 24px -18px rgba(15,23,42,0.45);
+}
+.vls-team-detail-top .fx-crest img {
+  max-width: 84%;
+  max-height: 84%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(15,23,42,0.18));
+}
+.vls-team-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+.vls-team-summary-card {
+  border-radius: 1rem;
+  border: 1px solid var(--dk-border, #edf2f7);
+  padding: 0.75rem 0.8rem;
+  background: color-mix(in srgb, var(--vls-primary) 4%, var(--dk-surface, #fff));
+}
+[data-bs-theme="dark"] .vls-team-summary-card {
+  border-color: #1e2d4a;
+  background: rgba(255,255,255,0.03);
+}
+[data-bs-theme="dark"] .vls-team-card .fx-crest,
+[data-bs-theme="dark"] .vls-team-detail-top .fx-crest {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(226,232,240,0.94));
+}
+[data-bs-theme="dark"] .vls-team-card .fx-crest img,
+[data-bs-theme="dark"] .vls-team-detail-top .fx-crest img {
+  filter: drop-shadow(0 5px 12px rgba(15,23,42,0.28));
+}
+.vls-team-summary-card span {
+  display: block;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bs-secondary);
+  font-weight: 700;
+}
+.vls-team-summary-card strong {
+  display: block;
+  margin-top: 0.12rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.96rem;
+}
+.vls-team-detail-section-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.7rem;
+}
+.vls-team-scorer-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.vls-team-scorer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--dk-border, #edf2f7);
+  background: color-mix(in srgb, var(--vls-accent) 6%, var(--dk-surface, #fff));
+}
+[data-bs-theme="dark"] .vls-team-scorer-item {
+  border-color: #1e2d4a;
+  background: rgba(255,255,255,0.03);
+}
+.vls-team-scorer-rank {
+  width: 24px;
+  color: var(--vls-primary);
+  font-weight: 800;
+  text-align: right;
+}
+.vls-team-match-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+.vls-sticky-playbar {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 95;
+  width: min(1080px, calc(100vw - 1.4rem));
+  border-radius: 1.2rem;
+  padding: 0.8rem 0.95rem;
+  background: color-mix(in srgb, var(--dk-surface, #fff) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vls-primary) 16%, var(--dk-border, #e2e8f0));
+  box-shadow: 0 24px 48px -28px rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(18px);
+}
+[data-bs-theme="dark"] .vls-sticky-playbar {
+  background: rgba(15, 22, 41, 0.88);
+}
+.vls-sticky-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  justify-content: space-between;
+}
+.vls-sticky-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+.vls-sticky-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-size: 0.98rem;
+}
+.vls-sticky-text {
+  font-size: 0.8rem;
+  color: var(--bs-secondary);
+}
+.vls-sticky-bar {
+  flex: 1;
+  max-width: 300px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+.vls-sticky-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(135deg, var(--vls-primary), var(--vls-accent));
+  border-radius: inherit;
+}
+.vls-sticky-action {
+  flex-shrink: 0;
+}
+.vls-season-complete {
+  display: none;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--dk-success, #16a34a);
+  font-weight: 700;
+}
+.vls-season-complete.is-visible {
+  display: inline-flex;
+}
+.vls-bottom-space {
+  height: 6rem;
+}
+@media (max-width: 991.98px) {
+  .vls-team-layout {
+    grid-template-columns: 1fr;
+  }
+  .vls-team-detail {
+    position: static;
+    top: auto;
+  }
+  .vls-team-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .vls-sticky-inner {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .vls-sticky-bar {
+    order: 3;
+    max-width: none;
+    width: 100%;
+  }
+}
+@media (max-width: 767.98px) {
+  .vls-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .vls-stat-summary {
+    grid-template-columns: 1fr;
+  }
+  .vls-team-stats,
+  .vls-team-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .vls-stat-row {
+    grid-template-columns: 30px minmax(0, 1fr) 30px 70px;
+  }
+  .vls-bottom-space {
+    height: 7rem;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vls-shell">
+  <section class="vls-hero">
+    <div class="container position-relative">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small">
+          <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-white-50">Home</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('virtual_games_catalog') }}" class="text-white-50">Virtual Games</a></li>
+          <li class="breadcrumb-item active text-white">{{ session.display_name }}</li>
+        </ol>
+      </nav>
+
+      <div class="d-flex align-items-start gap-3 flex-wrap mt-3">
+        {% if league.logo %}
+        <img src="{{ league.logo }}" alt="{{ league.name }}" class="vls-league-logo" onerror="this.style.display='none'">
+        {% endif %}
+
+        <div class="flex-grow-1">
+          <div class="vls-title">{{ session.display_name }}</div>
+          <div class="vls-subtitle mt-1">{{ league.name }} · {{ league.country }} · {{ league.teams|length }} clubs · {{ session.total_matchdays }} matchdays</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="vls-pill" id="hero-played-pill">
+              <i class="bi bi-calendar3"></i>
+              <span id="hero-played-copy">Played {{ played_matchdays }} / {{ session.total_matchdays }}</span>
+            </span>
+            <span class="vls-pill{% if session.status == 'completed' %} d-none{% endif %}" id="hero-next-pill">
+              <i class="bi bi-fast-forward-circle"></i>
+              <span id="hero-next-copy">Next: Matchday {{ current_matchday }}</span>
+            </span>
+            <span class="vls-pill">
+              <i class="bi bi-flag-fill"></i>{{ league.name }}
+            </span>
+          </div>
+
+          <div class="vls-progress">
+            <div class="vls-progress-fill" id="hero-progress-fill" style="width:{{ progress_pct }}%"></div>
+          </div>
+        </div>
+
+        <div class="vls-hero-actions">
+          <a href="{{ url_for('virtual_league_new_get', league_code=session.league_code) }}" class="btn btn-light">
+            <i class="bi bi-plus-circle me-1"></i>Create another season
+          </a>
+          <form method="post" action="{{ url_for('virtual_league_restart', session_key=session.session_key) }}" onsubmit="return confirm('Restart this season from matchday 1?')">
+            <button type="submit" class="btn btn-outline-light">
+              <i class="bi bi-arrow-clockwise me-1"></i>Restart
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="vls-tab-bar">
+    <div class="container">
+      <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-play" data-bs-toggle="tab" data-bs-target="#pane-play" type="button" role="tab">
+            <i class="bi bi-play-circle-fill me-1"></i>Play
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-table" data-bs-toggle="tab" data-bs-target="#pane-table" type="button" role="tab">
+            <i class="bi bi-list-ol me-1"></i>Table
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-teams" data-bs-toggle="tab" data-bs-target="#pane-teams" type="button" role="tab">
+            <i class="bi bi-shield-fill me-1"></i>Teams
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-scorers" data-bs-toggle="tab" data-bs-target="#pane-scorers" type="button" role="tab">
+            <i class="bi bi-bullseye me-1"></i>Scorers
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-history" data-bs-toggle="tab" data-bs-target="#pane-history" type="button" role="tab">
+            <i class="bi bi-clock-history me-1"></i>History
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="container py-4 pb-5">
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-play" role="tabpanel">
+        <div class="row g-4">
+          <div class="col-xl-8">
+            <div class="vls-panel mb-4">
+              <div class="vls-play-panel-body">
+                {% if session.status != 'completed' %}
+                <div class="vls-kicker" id="play-kicker"><i class="bi bi-controller"></i>Matchday {{ current_matchday }} ready</div>
+                <h1 class="h3 vls-play-title mt-3 mb-2" id="play-heading">Play the next matchweek</h1>
+                <p class="vls-play-copy" id="play-copy">Keep the season moving from anywhere on this page. The same control also stays visible at the bottom while you browse standings, scorers, and history.</p>
+                <div class="vls-play-actions">
+                  <button type="button" class="vls-play-btn js-play-matchday" {% if not fixtures_today %}disabled{% endif %}>
+                    <i class="bi bi-play-circle-fill"></i>
+                    <span>Play Matchday {{ current_matchday }}</span>
+                  </button>
+                  <button type="button" class="vls-play-btn-ghost" onclick="document.getElementById('tab-history').click()">
+                    <i class="bi bi-clock-history"></i>Review past matchdays
+                  </button>
+                </div>
+                <div class="vls-season-complete" id="play-complete-banner">
+                  <i class="bi bi-trophy-fill"></i>
+                  <span>Season complete. You can still review the full table, scorers, and match history.</span>
+                </div>
+                {% else %}
+                <div class="vls-kicker"><i class="bi bi-trophy-fill"></i>Season complete</div>
+                <h1 class="h3 vls-play-title mt-3 mb-2">This virtual season is finished</h1>
+                <p class="vls-play-copy mb-0">All matchdays have been played. You can still explore the standings, top scorers, and every fixture detail below.</p>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="vls-panel mb-4">
+              <div class="vls-panel-header">
+                <i class="bi bi-calendar-event" style="color:var(--vls-primary)"></i>
+                <div class="vls-panel-title" id="play-fixtures-title">
+                  {% if session.status == 'completed' %}
+                    Season schedule complete
+                  {% else %}
+                    Upcoming Matchday {{ current_matchday }} Fixtures
+                  {% endif %}
+                </div>
+              </div>
+              <div class="p-3">
+                <div id="play-fixtures-grid" class="vls-grid">
+                  {% if fixtures_today %}
+                    {% for vm in fixtures_today %}{% include "_virtual_match_card.html" %}{% endfor %}
+                  {% else %}
+                  <div class="vls-empty">
+                    <div>
+                      <i class="bi bi-flag"></i>
+                      <div class="fw-semibold mb-1">No more fixtures waiting</div>
+                      <div class="small">The season is fully played. Explore the history tab for every matchday.</div>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="vls-panel">
+              <div class="vls-panel-header">
+                <i class="bi bi-check-circle-fill" style="color:var(--vls-primary)"></i>
+                <div class="vls-panel-title" id="last-results-title">
+                  {% if played_matchdays %}Matchday {{ played_matchdays }} Results{% else %}Latest Results{% endif %}
+                </div>
+              </div>
+              <div class="p-3">
+                <div id="last-results-container" class="vls-grid">
+                  {% if last_matchday_results %}
+                    {% for vm in last_matchday_results %}{% include "_virtual_match_card.html" %}{% endfor %}
+                  {% else %}
+                  <div class="vls-empty">
+                    <div>
+                      <i class="bi bi-hourglass-split"></i>
+                      <div class="fw-semibold mb-1">No matchday played yet</div>
+                      <div class="small">Play the first round and the scored goals plus match stats will appear here.</div>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-4">
+            <div class="vls-panel vls-summary-card mb-4">
+              <div class="vls-panel-title mb-3">Season Summary</div>
+              <div class="vls-summary-list">
+                <div class="vls-summary-row">
+                  <span class="vls-summary-label">Played</span>
+                  <span class="vls-summary-strong" id="summary-played">{{ played_matchdays }} / {{ session.total_matchdays }}</span>
+                </div>
+                <div class="progress" style="height:8px;border-radius:999px">
+                  <div class="progress-bar" id="summary-progress-fill" style="width:{{ progress_pct }}%;background:linear-gradient(135deg, var(--vls-primary), var(--vls-accent))"></div>
+                </div>
+                <div class="vls-summary-row">
+                  <span class="vls-summary-label">Remaining</span>
+                  <span class="vls-summary-strong" id="summary-remaining">{{ session.total_matchdays - played_matchdays }} matchdays</span>
+                </div>
+                <div class="vls-summary-row">
+                  <span class="vls-summary-label">League leader</span>
+                  <span class="vls-summary-strong" id="summary-leader">{% if standings %}{{ standings[0].team }} · {{ standings[0].points }} pts{% else %}Waiting for MD 1{% endif %}</span>
+                </div>
+                <div class="vls-summary-row">
+                  <span class="vls-summary-label">Top scorer</span>
+                  <span class="vls-summary-strong" id="summary-top-scorer">{% if top_scorers %}{{ top_scorers[0].player_name }} · {{ top_scorers[0].goals }} goals{% else %}No goals yet{% endif %}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="vls-panel mb-4">
+              <div class="vls-panel-header">
+                <i class="bi bi-table" style="color:var(--vls-primary)"></i>
+                <div class="vls-panel-title">Current Table</div>
+              </div>
+              <div id="mini-table-body" class="table-responsive vls-mini-table">
+                <table class="table table-hover align-middle gg-table">
+                  <thead>
+                    <tr>
+                      <th class="text-center">#</th>
+                      <th>Team</th>
+                      <th class="text-center">P</th>
+                      <th class="text-center">GD</th>
+                      <th class="text-center">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in standings[:8] %}
+                    {% set zone = get_zone(session.league_code, row.position) %}
+                    <tr class="{{ 'qual-' + zone.zone if zone else '' }}">
+                      <td class="text-center fw-semibold qual-cell">{% if zone %}<span class="qual-bar qual-bar-{{ zone.zone }}" aria-hidden="true"></span>{% endif %}{{ row.position }}</td>
+                      <td>
+                        <div class="d-flex align-items-center gap-2">
+                          {% set crest = team_crests.get(row.team, '') %}
+                          {% if crest %}<img src="{{ crest }}" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0" onerror="this.style.display='none'">{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}
+                          <span class="text-truncate">{{ row.team }}</span>
+                        </div>
+                      </td>
+                      <td class="text-center">{{ row.played }}</td>
+                      <td class="text-center {% if row.goal_diff > 0 %}text-success{% elif row.goal_diff < 0 %}text-danger{% endif %}">{% if row.goal_diff > 0 %}+{% endif %}{{ row.goal_diff }}</td>
+                      <td class="text-center fw-bold">{{ row.points }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not standings %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Play matchday 1 to see the table.</td></tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="vls-panel">
+              <div class="vls-panel-header">
+                <i class="bi bi-bullseye" style="color:var(--vls-accent)"></i>
+                <div class="vls-panel-title">Top Scorers</div>
+              </div>
+              <div id="mini-scorers-body" class="vls-scorer-list">
+                {% for scorer in top_scorers[:5] %}
+                <div class="vls-scorer-row">
+                  <span class="vls-scorer-rank">{{ loop.index }}</span>
+                  <span class="vls-scorer-goals">{{ scorer.goals }}</span>
+                  <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold text-truncate">{{ scorer.player_name }}</div>
+                    <div class="text-muted small text-truncate">{{ scorer.team_name }}</div>
+                  </div>
+                </div>
+                {% endfor %}
+                {% if not top_scorers %}
+                <div class="text-muted small py-3 text-center">No scorers yet. The first matchday will seed this table.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-table" role="tabpanel">
+        <div class="vls-panel">
+          <div class="vls-panel-header">
+            <i class="bi bi-list-ol" style="color:var(--vls-primary)"></i>
+            <div class="vls-panel-title">Full League Table</div>
+          </div>
+          <div id="full-table-wrap" class="table-responsive vls-full-table">
+            <table class="table table-hover align-middle gg-table">
+              <thead>
+                <tr>
+                  <th class="text-center">#</th>
+                  <th>Team</th>
+                  <th class="text-center">P</th>
+                  <th class="text-center d-none d-md-table-cell">W</th>
+                  <th class="text-center d-none d-md-table-cell">D</th>
+                  <th class="text-center d-none d-md-table-cell">L</th>
+                  <th class="text-center d-none d-sm-table-cell">GF</th>
+                  <th class="text-center d-none d-sm-table-cell">GA</th>
+                  <th class="text-center">GD</th>
+                  <th class="text-center">Form</th>
+                  <th class="text-center">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in standings %}
+                {% set zone = get_zone(session.league_code, row.position) %}
+                <tr class="{{ 'qual-' + zone.zone if zone else '' }}">
+                  <td class="text-center fw-semibold qual-cell">{% if zone %}<span class="qual-bar qual-bar-{{ zone.zone }}" aria-hidden="true"></span>{% endif %}{{ row.position }}</td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      {% set crest = team_crests.get(row.team, '') %}
+                      {% if crest %}<img src="{{ crest }}" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0" onerror="this.style.display='none'">{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}
+                      <span class="text-truncate">{{ row.team }}</span>
+                    </div>
+                  </td>
+                  <td class="text-center">{{ row.played }}</td>
+                  <td class="text-center d-none d-md-table-cell">{{ row.won }}</td>
+                  <td class="text-center d-none d-md-table-cell">{{ row.drawn }}</td>
+                  <td class="text-center d-none d-md-table-cell">{{ row.lost }}</td>
+                  <td class="text-center d-none d-sm-table-cell">{{ row.goals_for }}</td>
+                  <td class="text-center d-none d-sm-table-cell">{{ row.goals_against }}</td>
+                  <td class="text-center {% if row.goal_diff > 0 %}text-success{% elif row.goal_diff < 0 %}text-danger{% endif %}">{% if row.goal_diff > 0 %}+{% endif %}{{ row.goal_diff }}</td>
+                  <td class="text-center" style="white-space:nowrap">{% for form in row.form %}<span class="form-pill form-{{ form|lower }}">{{ form }}</span>{% endfor %}</td>
+                  <td class="text-center fw-bold">{{ row.points }}</td>
+                </tr>
+                {% endfor %}
+                {% if not standings %}
+                <tr><td colspan="11" class="text-center text-muted py-4">Play matchday 1 to unlock the full table.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-teams" role="tabpanel">
+        <div class="vls-team-layout">
+          <div class="vls-team-list" id="team-list">
+          {% for team in league.teams %}
+          {% set row = standings | selectattr('team', 'equalto', team) | first | default(none) %}
+          {% set crest = team_crests.get(team, '') %}
+          <button type="button" class="vls-team-card{% if initial_team_name == team %} is-active{% endif %}" data-vls-team-card data-team-name="{{ team }}">
+            <div class="d-flex align-items-center gap-3">
+              <div class="fx-crest">
+                {% if crest %}<img src="{{ img_url(crest, crest) }}" alt="{{ team }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.classList.remove('d-none')"><i class="bi bi-shield text-muted d-none"></i>{% else %}<i class="bi bi-shield text-muted" style="font-size:1.2rem"></i>{% endif %}
+              </div>
+              <div class="min-width-0 flex-grow-1">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <div class="fw-semibold text-truncate">{{ team }}</div>
+                  {% if row %}<span class="badge rounded-pill" style="background:var(--vls-primary-soft);color:var(--vls-primary)">#{{ row.position }}</span>{% endif %}
+                </div>
+                {% if row %}
+                <div class="text-muted small">{{ row.points }} pts in the league so far</div>
+                {% else %}
+                <div class="text-muted small">Season not started yet</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="vls-team-stats">
+              <div class="vls-team-stat">
+                <span>Pts</span>
+                <strong>{{ row.points if row else 0 }}</strong>
+              </div>
+              <div class="vls-team-stat">
+                <span>Played</span>
+                <strong>{{ row.played if row else 0 }}</strong>
+              </div>
+              <div class="vls-team-stat">
+                <span>GD</span>
+                <strong>{% if row and row.goal_diff > 0 %}+{% endif %}{{ row.goal_diff if row else 0 }}</strong>
+              </div>
+            </div>
+          </button>
+          {% endfor %}
+          </div>
+
+          <div class="vls-panel vls-team-detail">
+            <div class="vls-panel-header">
+              <i class="bi bi-shield-check" style="color:var(--vls-primary)"></i>
+              <div class="vls-panel-title" id="team-detail-title">
+                {% if initial_team_name %}{{ initial_team_name }} Snapshot{% else %}Team Snapshot{% endif %}
+              </div>
+            </div>
+            <div class="vls-team-detail-body" id="team-detail-body">
+              <div class="vls-empty">
+                <div>
+                  <i class="bi bi-hourglass-split"></i>
+                  <div class="fw-semibold mb-1">Loading team snapshot</div>
+                  <div class="small">Top scorers, league numbers, and played matches will appear here.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-scorers" role="tabpanel">
+        <div class="row g-4">
+          <div class="col-xl-7">
+            <div class="vls-panel">
+              <div class="vls-panel-header">
+                <i class="bi bi-bullseye" style="color:var(--vls-accent)"></i>
+                <div class="vls-panel-title">Full Scorers List</div>
+              </div>
+              <div id="full-scorers-list" class="vls-scorer-list">
+                {% for scorer in top_scorers %}
+                <div class="vls-scorer-row">
+                  <span class="vls-scorer-rank">{{ loop.index }}</span>
+                  <span class="vls-scorer-goals">{{ scorer.goals }}</span>
+                  <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold text-truncate">{{ scorer.player_name }}</div>
+                    <div class="text-muted small text-truncate">{{ scorer.team_name }}</div>
+                  </div>
+                  {% if scorer.assists %}
+                  <span class="badge rounded-pill text-bg-light">{{ scorer.assists }} ast</span>
+                  {% endif %}
+                </div>
+                {% endfor %}
+                {% if not top_scorers %}
+                <div class="text-muted small py-3 text-center">No goals yet. Scorelines will start shaping this list after the first played round.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-5">
+            <div class="vls-panel">
+              <div class="vls-panel-header">
+                <i class="bi bi-bar-chart" style="color:var(--vls-primary)"></i>
+                <div class="vls-panel-title">Goals by Team</div>
+              </div>
+              <div id="goals-by-team" class="vls-goals-chart">
+                {% set team_goals = {} %}
+                {% for scorer in top_scorers %}
+                  {% if scorer.team_name in team_goals %}
+                    {% set _ = team_goals.update({scorer.team_name: team_goals[scorer.team_name] + scorer.goals}) %}
+                  {% else %}
+                    {% set _ = team_goals.update({scorer.team_name: scorer.goals}) %}
+                  {% endif %}
+                {% endfor %}
+                {% set max_goals = team_goals.values() | max if team_goals else 1 %}
+                {% for team_name, goals in (team_goals | dictsort(by='value', reverse=True))[:8] %}
+                <div class="vls-chart-row">
+                  <div>
+                    <div class="vls-chart-label text-truncate">{{ team_name }}</div>
+                    <div class="vls-chart-bar"><span style="width:{{ (goals / max_goals * 100) | int }}%"></span></div>
+                  </div>
+                  <div class="fw-bold text-end">{{ goals }}</div>
+                </div>
+                {% endfor %}
+                {% if not top_scorers %}
+                <div class="text-muted small py-3">The chart will appear once goals have been scored.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-history" role="tabpanel">
+        <div class="vls-panel mb-4">
+          <div class="vls-panel-header">
+            <i class="bi bi-calendar2-week" style="color:var(--vls-primary)"></i>
+            <div class="vls-panel-title">Select Matchday</div>
+          </div>
+          <div class="p-3">
+            <div class="vls-md-selector">
+              {% for md in range(1, session.total_matchdays + 1) %}
+              <button
+                type="button"
+                class="vls-md-btn {% if md <= played_matchdays %}played{% endif %} {% if md == played_matchdays and played_matchdays > 0 %}active-md{% endif %}"
+                data-md="{{ md }}"
+                {% if md > played_matchdays %}disabled{% endif %}
+              >
+                {{ md }}
+              </button>
+              {% endfor %}
+            </div>
+            <div class="mt-3">
+              <div class="d-flex align-items-center justify-content-between gap-3 small text-muted mb-2">
+                <span>Season progress</span>
+                <span id="history-progress-copy">{{ played_matchdays }} of {{ session.total_matchdays }} matchdays completed</span>
+              </div>
+              <div class="vls-md-progress">
+                <span id="history-progress-fill" style="width:{{ progress_pct }}%"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vls-panel">
+          <div class="vls-panel-header">
+            <i class="bi bi-clock-history" style="color:var(--vls-accent)"></i>
+            <div class="vls-panel-title" id="history-md-title">
+              {% if played_matchdays %}Matchday {{ played_matchdays }} Results{% else %}No Played Matchdays Yet{% endif %}
+            </div>
+          </div>
+          <div class="p-3">
+            <div id="history-results" class="vls-grid">
+              {% if played_matchdays %}
+              {% for vm in last_matchday_results %}{% include "_virtual_match_card.html" %}{% endfor %}
+              {% else %}
+              <div class="vls-empty">
+                <div>
+                  <i class="bi bi-calendar-x"></i>
+                  <div class="fw-semibold mb-1">No matchday history yet</div>
+                  <div class="small">Once the first round is played, every matchday will be available here.</div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vls-sticky-playbar{% if session.status == 'completed' %} d-none{% endif %}" id="sticky-playbar">
+    <div class="vls-sticky-inner">
+      <div class="vls-sticky-copy">
+        <div class="vls-sticky-title">{{ session.display_name }}</div>
+        <div class="vls-sticky-text" id="sticky-copy">Matchday {{ current_matchday }} is ready to play.</div>
+      </div>
+      <div class="vls-sticky-bar"><span id="sticky-progress-fill" style="width:{{ progress_pct }}%"></span></div>
+      <div class="vls-sticky-action">
+        <button type="button" class="vls-play-btn js-play-matchday" {% if not fixtures_today %}disabled{% endif %}>
+          <i class="bi bi-play-circle-fill"></i>
+          <span>Play Matchday {{ current_matchday }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="vls-bottom-space"></div>
+</div>
+
+<script>
+(function () {
+  const SESSION_KEY = "{{ session.session_key }}";
+  const LEAGUE_CODE = "{{ session.league_code }}";
+  const TOTAL_MATCHDAYS = {{ session.total_matchdays }};
+  let nextMatchday = {{ current_matchday }};
+  let playedMatchdays = {{ played_matchdays }};
+  let seasonComplete = {{ 'true' if session.status == 'completed' else 'false' }};
+  let activeTeamName = {{ (initial_team_name or '') | tojson }};
+  const TEAM_CRESTS = {{ team_crests | tojson }};
+  const LEAGUE_TEAMS = {{ league.teams | tojson }};
+  const LEAGUE_META = {{ {"name": league.name, "logo": league.logo} | tojson }};
+  const STANDINGS_BOOTSTRAP = {{ standings | tojson }};
+  const INITIAL_TEAM_DETAIL = {{ initial_team_detail | tojson }};
+
+  const playButtons = Array.from(document.querySelectorAll(".js-play-matchday"));
+  const playKicker = document.getElementById("play-kicker");
+  const playHeading = document.getElementById("play-heading");
+  const playCopy = document.getElementById("play-copy");
+  const playCompleteBanner = document.getElementById("play-complete-banner");
+  const stickyBar = document.getElementById("sticky-playbar");
+  const heroNextPill = document.getElementById("hero-next-pill");
+  const teamList = document.getElementById("team-list");
+  const teamDetailBody = document.getElementById("team-detail-body");
+  const teamDetailTitle = document.getElementById("team-detail-title");
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function goalDiffText(value) {
+    const number = Number(value || 0);
+    return `${number > 0 ? "+" : ""}${number}`;
+  }
+
+  function renderCrest(url, alt) {
+    if (!url) {
+      return '<div class="fx-crest"><i class="bi bi-shield text-muted"></i></div>';
+    }
+    return `<div class="fx-crest">
+      <img src="${escapeHtml(url)}" alt="${escapeHtml(alt || "")}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.classList.remove('d-none')">
+      <i class="bi bi-shield text-muted d-none"></i>
+    </div>`;
+  }
+
+  function renderFormPills(form) {
+    if (!form || !form.length) {
+      return '<span class="text-muted small">No form yet</span>';
+    }
+    return form.map((item) => `<span class="form-pill form-${String(item).toLowerCase()}">${escapeHtml(item)}</span>`).join("");
+  }
+
+  function scorerPreview(scorers) {
+    return (scorers || []).slice(0, 2).map((scorer) => {
+      const player = scorer.player || scorer.player_name || "";
+      const minute = scorer.minute != null ? ` ${scorer.minute}'` : "";
+      return `${escapeHtml(player)}${minute}`;
+    }).join(", ");
+  }
+
+  function matchDetailAvailable(match) {
+    return !!((match.home_scorers || []).length || (match.away_scorers || []).length || Object.keys(match.home_stats || {}).length || Object.keys(match.away_stats || {}).length);
+  }
+
+  function renderGoals(items) {
+    if (!items || !items.length) {
+      return '<div class="text-muted small">No goals</div>';
+    }
+    return items.map((scorer) => {
+      const assist = scorer.assist ? ` <span class="text-muted">(${escapeHtml(scorer.assist)})</span>` : "";
+      return `<div class="vls-goal-scorer"><i class="bi bi-record-circle-fill"></i><span>${escapeHtml(scorer.player || scorer.player_name || "")} ${scorer.minute || ""}'</span>${assist}</div>`;
+    }).join("");
+  }
+
+  function renderStats(match) {
+    const homeStats = match.home_stats || {};
+    const awayStats = match.away_stats || {};
+    const homeShots = Number(homeStats.shots || 0);
+    const awayShots = Number(awayStats.shots || 0);
+    const homeOnTarget = Number(homeStats.shots_on_target || 0);
+    const awayOnTarget = Number(awayStats.shots_on_target || 0);
+    const statPairs = [
+      ["possession", "Possession"],
+      ["shots", "Shots"],
+      ["shots_on_target", "On target"],
+      ["corners", "Corners"],
+      ["fouls", "Fouls"],
+    ];
+    const rows = statPairs.map(([key, label]) => {
+      const homeValue = Number(homeStats[key] || 0);
+      const awayValue = Number(awayStats[key] || 0);
+      const total = homeValue + awayValue || 1;
+      return `<div class="vls-stat-row">
+        <span class="vls-stat-value vls-stat-value-home">${homeValue}</span>
+        <div class="vls-stat-bar-track">
+          <div class="vls-stat-h" style="width:${Math.round((homeValue / total) * 100)}%"></div>
+          <div class="vls-stat-a" style="width:${Math.round((awayValue / total) * 100)}%"></div>
+        </div>
+        <span class="vls-stat-value vls-stat-value-away">${awayValue}</span>
+        <span class="vls-stat-label">${label}</span>
+      </div>`;
+    }).join("");
+    const summary = `<div class="vls-stat-summary">
+      <div class="vls-stat-chip">
+        <span>Total shots</span>
+        <strong>${homeShots} - ${awayShots}</strong>
+      </div>
+      <div class="vls-stat-chip">
+        <span>On target</span>
+        <strong>${homeOnTarget} - ${awayOnTarget}</strong>
+      </div>
+      <div class="vls-stat-chip">
+        <span>Shot accuracy</span>
+        <strong>${Math.round((homeOnTarget / (homeShots || 1)) * 100)}% - ${Math.round((awayOnTarget / (awayShots || 1)) * 100)}%</strong>
+      </div>
+    </div>`;
+    return rows ? `<div class="vls-stats-grid">${summary}${rows}</div>` : "";
+  }
+
+  function renderVirtualMatchCard(match) {
+    const played = match.status === "played" || match.status === "FINISHED" || (match.home_score !== null && match.home_score !== undefined && match.away_score !== null && match.away_score !== undefined);
+    const canExpand = played && matchDetailAvailable(match);
+    const homePreview = match.home_preview || scorerPreview(match.home_scorers) || (played ? "No scorers yet" : "Ready to play");
+    const awayPreview = match.away_preview || scorerPreview(match.away_scorers) || (played ? "No scorers yet" : "Ready to play");
+    const matchday = match.matchday ? `<span class="vls-md-pill">MD ${match.matchday}</span>` : "";
+    const hint = canExpand
+      ? '<span>View scorers and match stats</span><i class="bi bi-chevron-down"></i>'
+      : played
+        ? "<span>Scorers and stats are not available for this match yet.</span>"
+        : "<span>This fixture will be simulated in the next matchweek.</span>";
+
+    const detail = canExpand ? `
+      <div class="vls-fx-detail" hidden>
+        <div class="vls-detail-grid">
+          <div class="vls-detail-column">
+            <div class="vls-detail-team" style="color:var(--vls-primary)">${escapeHtml(match.home_team)}</div>
+            ${renderGoals(match.home_scorers)}
+          </div>
+          <div class="vls-detail-column">
+            <div class="vls-detail-team" style="color:var(--vls-accent)">${escapeHtml(match.away_team)}</div>
+            ${renderGoals(match.away_scorers)}
+          </div>
+        </div>
+        ${renderStats(match)}
+      </div>` : "";
+
+    return `<article class="vls-match-shell ${played ? "is-played" : "is-scheduled"}">
+      <div class="fx-card vls-fx-card ${canExpand ? "is-expandable" : ""}" ${canExpand ? 'role="button" tabindex="0" data-vls-toggle aria-expanded="false"' : ""}>
+        <div class="fx-header vls-fx-header">
+          <span class="fx-comp">
+            ${match.competition && match.competition.emblem ? `<img src="${escapeHtml(match.competition.emblem)}" alt="" loading="lazy">` : ""}
+            ${escapeHtml(match.competition && match.competition.name ? match.competition.name : LEAGUE_META.name)}
+          </span>
+          ${matchday}
+        </div>
+        <div class="fx-row">
+          <div class="fx-team">
+            ${renderCrest(match.home_crest, match.home_team)}
+            <div class="fx-name">${escapeHtml(match.home_team)}</div>
+            <div class="vls-team-sub">${homePreview}</div>
+          </div>
+          <div class="fx-center">
+            ${played
+              ? `<div class="fx-score">${match.home_score}<span class="fx-sep">-</span>${match.away_score}</div><div class="fx-status-pill ft">FT</div>`
+              : '<div class="fx-vs">VS</div><div class="fx-status-pill">Ready to simulate</div>'}
+          </div>
+          <div class="fx-team">
+            ${renderCrest(match.away_crest, match.away_team)}
+            <div class="fx-name">${escapeHtml(match.away_team)}</div>
+            <div class="vls-team-sub">${awayPreview}</div>
+          </div>
+        </div>
+        <div class="vls-card-hint">${hint}</div>
+      </div>
+      ${detail}
+    </article>`;
+  }
+
+  function renderEmptyState(icon, title, copy) {
+    return `<div class="vls-empty"><div><i class="bi ${icon}"></i><div class="fw-semibold mb-1">${title}</div><div class="small">${copy}</div></div></div>`;
+  }
+
+  function bindMatchCardToggles(root) {
+    root.querySelectorAll("[data-vls-toggle]").forEach((card) => {
+      if (card.dataset.bound === "1") {
+        return;
+      }
+      card.dataset.bound = "1";
+      const toggle = () => {
+        const shell = card.closest(".vls-match-shell");
+        const detail = shell ? shell.querySelector(".vls-fx-detail") : null;
+        if (!detail) {
+          return;
+        }
+        const willOpen = detail.hasAttribute("hidden");
+        if (willOpen) {
+          detail.removeAttribute("hidden");
+          shell.classList.add("is-open");
+          card.setAttribute("aria-expanded", "true");
+        } else {
+          detail.setAttribute("hidden", "");
+          shell.classList.remove("is-open");
+          card.setAttribute("aria-expanded", "false");
+        }
+      };
+      card.addEventListener("click", toggle);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggle();
+        }
+      });
+    });
+  }
+
+  function renderMiniStandings(rows) {
+    if (!rows || !rows.length) {
+      return '<table class="table"><tbody><tr><td class="text-center text-muted py-4">Play matchday 1 to see the table.</td></tr></tbody></table>';
+    }
+    const zoneMap = {
+      PL: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 18: "rel", 19: "rel", 20: "rel"},
+      PD: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 18: "rel", 19: "rel", 20: "rel"},
+      SA: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 18: "rel", 19: "rel", 20: "rel"},
+      BL1: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 16: "rel-po", 17: "rel-po", 18: "rel"},
+      FL1: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 16: "rel-po", 17: "rel-po", 18: "rel"},
+    };
+    return `<table class="table table-hover align-middle gg-table">
+      <thead><tr><th class="text-center">#</th><th>Team</th><th class="text-center">P</th><th class="text-center">GD</th><th class="text-center">Pts</th></tr></thead>
+      <tbody>
+        ${rows.slice(0, 8).map((row) => {
+          const zone = (zoneMap[LEAGUE_CODE] || {})[row.position];
+          const qual = zone ? `<span class="qual-bar qual-bar-${zone}" aria-hidden="true"></span>` : "";
+          const crest = TEAM_CRESTS[row.team] ? `<img src="${escapeHtml(TEAM_CRESTS[row.team])}" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0">` : '<i class="bi bi-shield text-muted"></i>';
+          const gdClass = row.goal_diff > 0 ? "text-success" : row.goal_diff < 0 ? "text-danger" : "";
+          const gdText = `${row.goal_diff > 0 ? "+" : ""}${row.goal_diff}`;
+          return `<tr class="${zone ? `qual-${zone}` : ""}">
+            <td class="text-center fw-semibold qual-cell">${qual}${row.position}</td>
+            <td><div class="d-flex align-items-center gap-2">${crest}<span class="text-truncate">${escapeHtml(row.team)}</span></div></td>
+            <td class="text-center">${row.played}</td>
+            <td class="text-center ${gdClass}">${gdText}</td>
+            <td class="text-center fw-bold">${row.points}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>`;
+  }
+
+  function renderFullStandings(rows) {
+    if (!rows || !rows.length) {
+      return '<table class="table"><tbody><tr><td class="text-center text-muted py-4">Play matchday 1 to unlock the full table.</td></tr></tbody></table>';
+    }
+    const zoneMap = {
+      PL: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 18: "rel", 19: "rel", 20: "rel"},
+      PD: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 18: "rel", 19: "rel", 20: "rel"},
+      SA: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 18: "rel", 19: "rel", 20: "rel"},
+      BL1: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 16: "rel-po", 17: "rel-po", 18: "rel"},
+      FL1: {1: "ucl", 2: "ucl", 3: "ucl", 4: "ucl", 5: "uel", 6: "uecl", 16: "rel-po", 17: "rel-po", 18: "rel"},
+    };
+    return `<table class="table table-hover align-middle gg-table">
+      <thead>
+        <tr>
+          <th class="text-center">#</th>
+          <th>Team</th>
+          <th class="text-center">P</th>
+          <th class="text-center d-none d-md-table-cell">W</th>
+          <th class="text-center d-none d-md-table-cell">D</th>
+          <th class="text-center d-none d-md-table-cell">L</th>
+          <th class="text-center d-none d-sm-table-cell">GF</th>
+          <th class="text-center d-none d-sm-table-cell">GA</th>
+          <th class="text-center">GD</th>
+          <th class="text-center">Form</th>
+          <th class="text-center">Pts</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((row) => {
+          const zone = (zoneMap[LEAGUE_CODE] || {})[row.position];
+          const qual = zone ? `<span class="qual-bar qual-bar-${zone}" aria-hidden="true"></span>` : "";
+          const crest = TEAM_CRESTS[row.team] ? `<img src="${escapeHtml(TEAM_CRESTS[row.team])}" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0">` : '<i class="bi bi-shield text-muted"></i>';
+          const gdClass = row.goal_diff > 0 ? "text-success" : row.goal_diff < 0 ? "text-danger" : "";
+          const gdText = `${row.goal_diff > 0 ? "+" : ""}${row.goal_diff}`;
+          const form = (row.form || []).map((item) => `<span class="form-pill form-${String(item).toLowerCase()}">${escapeHtml(item)}</span>`).join("");
+          return `<tr class="${zone ? `qual-${zone}` : ""}">
+            <td class="text-center fw-semibold qual-cell">${qual}${row.position}</td>
+            <td><div class="d-flex align-items-center gap-2">${crest}<span class="text-truncate">${escapeHtml(row.team)}</span></div></td>
+            <td class="text-center">${row.played}</td>
+            <td class="text-center d-none d-md-table-cell">${row.won}</td>
+            <td class="text-center d-none d-md-table-cell">${row.drawn}</td>
+            <td class="text-center d-none d-md-table-cell">${row.lost}</td>
+            <td class="text-center d-none d-sm-table-cell">${row.goals_for}</td>
+            <td class="text-center d-none d-sm-table-cell">${row.goals_against}</td>
+            <td class="text-center ${gdClass}">${gdText}</td>
+            <td class="text-center" style="white-space:nowrap">${form}</td>
+            <td class="text-center fw-bold">${row.points}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>`;
+  }
+
+  function renderScorers(rows, limit) {
+    const slice = typeof limit === "number" ? rows.slice(0, limit) : rows;
+    if (!slice.length) {
+      return '<div class="text-muted small py-3 text-center">No scorers yet.</div>';
+    }
+    return slice.map((scorer, index) => `
+      <div class="vls-scorer-row">
+        <span class="vls-scorer-rank">${index + 1}</span>
+        <span class="vls-scorer-goals">${scorer.goals}</span>
+        <div class="flex-grow-1 min-width-0">
+          <div class="fw-semibold text-truncate">${escapeHtml(scorer.player_name)}</div>
+          <div class="text-muted small text-truncate">${escapeHtml(scorer.team_name)}</div>
+        </div>
+        ${scorer.assists ? `<span class="badge rounded-pill text-bg-light">${scorer.assists} ast</span>` : ""}
+      </div>
+    `).join("");
+  }
+
+  function renderGoalsByTeam(rows) {
+    if (!rows || !rows.length) {
+      return '<div class="text-muted small py-3">The chart will appear once goals have been scored.</div>';
+    }
+    const totals = {};
+    rows.forEach((scorer) => {
+      totals[scorer.team_name] = (totals[scorer.team_name] || 0) + Number(scorer.goals || 0);
+    });
+    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const maxGoals = sorted.length ? sorted[0][1] : 1;
+    return sorted.map(([team, goals]) => `
+      <div class="vls-chart-row">
+        <div>
+          <div class="vls-chart-label text-truncate">${escapeHtml(team)}</div>
+          <div class="vls-chart-bar"><span style="width:${Math.round((goals / maxGoals) * 100)}%"></span></div>
+        </div>
+        <div class="fw-bold text-end">${goals}</div>
+      </div>
+    `).join("");
+  }
+
+  function orderTeams(rows) {
+    const ordered = rows && rows.length ? rows.map((row) => row.team) : [];
+    LEAGUE_TEAMS.forEach((team) => {
+      if (!ordered.includes(team)) {
+        ordered.push(team);
+      }
+    });
+    return ordered;
+  }
+
+  function setActiveTeamCard(teamName) {
+    document.querySelectorAll("[data-vls-team-card]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.teamName === teamName);
+    });
+  }
+
+  function renderTeamCards(rows) {
+    if (!teamList) {
+      return;
+    }
+    const standingsByTeam = new Map((rows || []).map((row) => [row.team, row]));
+    teamList.innerHTML = orderTeams(rows || []).map((teamName) => {
+      const row = standingsByTeam.get(teamName);
+      return `<button type="button" class="vls-team-card${activeTeamName === teamName ? " is-active" : ""}" data-vls-team-card data-team-name="${escapeHtml(teamName)}">
+        <div class="d-flex align-items-center gap-3">
+          ${renderCrest(TEAM_CRESTS[teamName], teamName)}
+          <div class="min-width-0 flex-grow-1">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <div class="fw-semibold text-truncate">${escapeHtml(teamName)}</div>
+              ${row ? `<span class="badge rounded-pill" style="background:var(--vls-primary-soft);color:var(--vls-primary)">#${row.position}</span>` : ""}
+            </div>
+            <div class="text-muted small">${row ? `${row.points} pts in the league so far` : "Season not started yet"}</div>
+          </div>
+        </div>
+        <div class="vls-team-stats">
+          <div class="vls-team-stat"><span>Pts</span><strong>${row ? row.points : 0}</strong></div>
+          <div class="vls-team-stat"><span>Played</span><strong>${row ? row.played : 0}</strong></div>
+          <div class="vls-team-stat"><span>GD</span><strong>${row ? goalDiffText(row.goal_diff) : 0}</strong></div>
+        </div>
+      </button>`;
+    }).join("");
+    bindTeamCards();
+    setActiveTeamCard(activeTeamName);
+  }
+
+  function renderTeamDetail(payload) {
+    if (!teamDetailBody || !payload) {
+      return;
+    }
+    const summary = payload.summary || {};
+    const topScorers = payload.top_scorers || [];
+    const matches = [...(payload.matches || [])].sort((a, b) => Number(b.matchday || 0) - Number(a.matchday || 0));
+    teamDetailTitle.textContent = `${payload.team_name} Snapshot`;
+    teamDetailBody.innerHTML = `
+      <div class="vls-team-detail-top">
+        ${renderCrest(payload.crest, payload.team_name)}
+        <div class="min-width-0 flex-grow-1">
+          <div class="vls-detail-team" style="color:var(--vls-primary)">${escapeHtml(payload.team_name)}</div>
+          <div class="text-muted small">${escapeHtml(LEAGUE_META.name)} ${summary.position ? `- Position #${summary.position}` : "- Waiting for the first table update"}</div>
+          <div class="mt-2 d-flex flex-wrap gap-2">${renderFormPills(summary.form || [])}</div>
+        </div>
+      </div>
+      <div class="vls-team-summary-grid">
+        <div class="vls-team-summary-card"><span>Points</span><strong>${summary.points || 0}</strong></div>
+        <div class="vls-team-summary-card"><span>Played</span><strong>${summary.played || 0}</strong></div>
+        <div class="vls-team-summary-card"><span>Goal Diff</span><strong>${goalDiffText(summary.goal_diff)}</strong></div>
+        <div class="vls-team-summary-card"><span>Record</span><strong>${summary.won || 0}-${summary.drawn || 0}-${summary.lost || 0}</strong></div>
+      </div>
+      <div class="d-flex flex-wrap gap-3 small text-muted mb-4">
+        <span>GF ${summary.goals_for || 0}</span>
+        <span>GA ${summary.goals_against || 0}</span>
+      </div>
+      <div class="vls-team-detail-section-title">Top 5 scorers</div>
+      <div class="vls-team-scorer-list">
+        ${topScorers.length ? topScorers.map((scorer, index) => `
+          <div class="vls-team-scorer-item">
+            <span class="vls-team-scorer-rank">${index + 1}</span>
+            <span class="vls-scorer-goals">${scorer.goals}</span>
+            <div class="min-width-0 flex-grow-1">
+              <div class="fw-semibold text-truncate">${escapeHtml(scorer.player_name)}</div>
+              <div class="text-muted small">${scorer.assists ? `${scorer.assists} assists` : "Goals only so far"}</div>
+            </div>
+          </div>
+        `).join("") : '<div class="text-muted small">No scorer has emerged for this team yet.</div>'}
+      </div>
+      <div class="vls-team-detail-section-title">Played matches</div>
+      <div class="vls-team-match-grid">
+        ${matches.length ? matches.map(renderVirtualMatchCard).join("") : renderEmptyState("bi-calendar-x", "No played matches yet", "Play a matchday to unlock this team history.")}
+      </div>
+    `;
+    bindMatchCardToggles(teamDetailBody);
+    setActiveTeamCard(payload.team_name);
+  }
+
+  function bindTeamCards() {
+    document.querySelectorAll("[data-vls-team-card]").forEach((button) => {
+      if (button.dataset.bound === "1") {
+        return;
+      }
+      button.dataset.bound = "1";
+      button.addEventListener("click", () => loadTeamDetail(button.dataset.teamName || "", button));
+    });
+  }
+
+  function setPlayButtonsBusy(busy, label) {
+    playButtons.forEach((button) => {
+      button.disabled = busy || seasonComplete;
+      const text = button.querySelector("span");
+      if (text && label) {
+        text.textContent = label;
+      }
+      if (busy) {
+        button.classList.add("is-busy");
+        button.dataset.originalHtml = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Simulating matchday...</span>';
+      } else if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
+        delete button.dataset.originalHtml;
+      }
+    });
+  }
+
+  function updateProgressUI() {
+    const progressPct = TOTAL_MATCHDAYS ? Math.min(100, Math.round((playedMatchdays / TOTAL_MATCHDAYS) * 100)) : 0;
+    document.getElementById("hero-played-copy").textContent = `Played ${playedMatchdays} / ${TOTAL_MATCHDAYS}`;
+    document.getElementById("hero-progress-fill").style.width = `${progressPct}%`;
+    document.getElementById("sticky-progress-fill").style.width = `${progressPct}%`;
+    document.getElementById("summary-played").textContent = `${playedMatchdays} / ${TOTAL_MATCHDAYS}`;
+    document.getElementById("summary-remaining").textContent = `${Math.max(TOTAL_MATCHDAYS - playedMatchdays, 0)} matchdays`;
+    document.getElementById("summary-progress-fill").style.width = `${progressPct}%`;
+    document.getElementById("history-progress-fill").style.width = `${progressPct}%`;
+    document.getElementById("history-progress-copy").textContent = `${playedMatchdays} of ${TOTAL_MATCHDAYS} matchdays completed`;
+
+    const nextCopy = document.getElementById("hero-next-copy");
+    const stickyCopy = document.getElementById("sticky-copy");
+    if (seasonComplete) {
+      heroNextPill.classList.add("d-none");
+      stickyBar.classList.add("d-none");
+      if (playKicker) {
+        playKicker.innerHTML = '<i class="bi bi-trophy-fill"></i>Season complete';
+      }
+      if (playHeading) {
+        playHeading.textContent = "The season is complete";
+      }
+      if (playCopy) {
+        playCopy.textContent = "You can still review every played fixture, top scorer, and final standings from this page.";
+      }
+      if (playCompleteBanner) {
+        playCompleteBanner.classList.add("is-visible");
+      }
+      if (stickyCopy) {
+        stickyCopy.textContent = "This season is finished.";
+      }
+    } else {
+      heroNextPill.classList.remove("d-none");
+      nextCopy.textContent = `Next: Matchday ${nextMatchday}`;
+      stickyCopy.textContent = `Matchday ${nextMatchday} is ready to play.`;
+      if (playKicker) {
+        playKicker.innerHTML = `<i class="bi bi-controller"></i>Matchday ${nextMatchday} ready`;
+      }
+      if (playHeading) {
+        playHeading.textContent = "Play the next matchweek";
+      }
+      if (playCopy) {
+        playCopy.textContent = "Keep the season moving from anywhere on this page. The same control also stays visible at the bottom while you browse standings, scorers, and history.";
+      }
+      if (playCompleteBanner) {
+        playCompleteBanner.classList.remove("is-visible");
+      }
+    }
+
+    playButtons.forEach((button) => {
+      button.disabled = seasonComplete;
+      const label = button.querySelector("span");
+      if (label) {
+        label.textContent = seasonComplete ? "Season complete" : `Play Matchday ${nextMatchday}`;
+      }
+    });
+  }
+
+  function markHistoryButtons() {
+    document.querySelectorAll(".vls-md-btn[data-md]").forEach((button) => {
+      const value = Number(button.dataset.md || 0);
+      if (value <= playedMatchdays) {
+        button.disabled = false;
+        button.classList.add("played");
+      } else {
+        button.disabled = true;
+      }
+    });
+  }
+
+  function updateSummaryCards(standings, scorers) {
+    const leader = standings && standings.length ? `${standings[0].team} - ${standings[0].points} pts` : "Waiting for MD 1";
+    const topScorer = scorers && scorers.length ? `${scorers[0].player_name} - ${scorers[0].goals} goals` : "No goals yet";
+    document.getElementById("summary-leader").textContent = leader;
+    document.getElementById("summary-top-scorer").textContent = topScorer;
+  }
+
+  function setMatchCardExpanded(card, open) {
+    const shell = card.closest(".vls-match-shell");
+    const detail = shell ? shell.querySelector(".vls-fx-detail") : null;
+    if (!detail) {
+      return;
+    }
+    if (open) {
+      detail.removeAttribute("hidden");
+      shell.classList.add("is-open");
+      card.setAttribute("aria-expanded", "true");
+    } else {
+      detail.setAttribute("hidden", "");
+      shell.classList.remove("is-open");
+      card.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function expandMatchCards(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      return;
+    }
+    container.querySelectorAll("[data-vls-toggle]").forEach((card) => setMatchCardExpanded(card, true));
+  }
+
+  function replaceMatchGrid(containerId, matches, emptyHtml, options = {}) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      return;
+    }
+    container.innerHTML = matches && matches.length ? matches.map(renderVirtualMatchCard).join("") : emptyHtml;
+    bindMatchCardToggles(container);
+    if (options.expandAll) {
+      expandMatchCards(containerId);
+    }
+  }
+
+  async function loadTeamDetail(teamName, button, options = {}) {
+    if (!teamName || !teamDetailBody) {
+      return;
+    }
+    activeTeamName = teamName;
+    setActiveTeamCard(teamName);
+    if (!options.silent) {
+      teamDetailTitle.textContent = `${teamName} Snapshot`;
+      teamDetailBody.innerHTML = renderEmptyState("bi-hourglass-split", "Loading team snapshot", "Fetching scorers, league numbers, and played matches...");
+    }
+    try {
+      const response = await fetch(`/virtual-league/${SESSION_KEY}/team?team=${encodeURIComponent(teamName)}`);
+      const payload = await response.json();
+      if (!response.ok || payload.error) {
+        throw new Error(payload.error || "Failed to load team details.");
+      }
+      renderTeamDetail(payload);
+    } catch (error) {
+      teamDetailBody.innerHTML = renderEmptyState("bi-exclamation-triangle", "Failed to load team snapshot", "Try opening this team again in a moment.");
+      if (button) {
+        button.classList.remove("is-active");
+      }
+    }
+  }
+
+  async function playNextMatchday() {
+    if (seasonComplete) {
+      return;
+    }
+    setPlayButtonsBusy(true);
+    try {
+      const response = await fetch(`/virtual-league/${SESSION_KEY}/play`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Failed to simulate matchday.");
+      }
+
+      playedMatchdays = Number(data.played_matchdays || playedMatchdays);
+      nextMatchday = Number(data.next_matchday || nextMatchday);
+      seasonComplete = !!data.season_complete;
+
+      document.getElementById("play-fixtures-title").textContent = seasonComplete
+        ? "Season schedule complete"
+        : `Upcoming Matchday ${nextMatchday} Fixtures`;
+      document.getElementById("last-results-title").textContent = `Matchday ${data.matchday} Results`;
+
+      replaceMatchGrid(
+        "play-fixtures-grid",
+        data.upcoming_fixtures || [],
+        renderEmptyState("bi-flag", "No more fixtures waiting", "The season is fully played. Explore the history tab for every matchday.")
+      );
+      replaceMatchGrid(
+        "last-results-container",
+        data.results || [],
+        renderEmptyState("bi-hourglass-split", "No results yet", "Play a round and the latest results will land here.")
+      );
+
+      document.getElementById("mini-table-body").innerHTML = renderMiniStandings(data.standings || []);
+      document.getElementById("full-table-wrap").innerHTML = renderFullStandings(data.standings || []);
+      document.getElementById("mini-scorers-body").innerHTML = renderScorers(data.top_scorers || [], 5);
+      document.getElementById("full-scorers-list").innerHTML = renderScorers(data.top_scorers || []);
+      document.getElementById("goals-by-team").innerHTML = renderGoalsByTeam(data.top_scorers || []);
+      renderTeamCards(data.standings || []);
+
+      document.getElementById("history-md-title").textContent = `Matchday ${data.matchday} Results`;
+      replaceMatchGrid(
+        "history-results",
+        data.results || [],
+        renderEmptyState("bi-calendar-x", "No matchday history yet", "Once the first round is played, every matchday will be available here."),
+        { expandAll: true }
+      );
+
+      document.querySelectorAll(".vls-md-btn").forEach((button) => button.classList.remove("active-md"));
+      const playedButton = document.querySelector(`.vls-md-btn[data-md="${data.matchday}"]`);
+      if (playedButton) {
+        playedButton.classList.add("active-md");
+      }
+      markHistoryButtons();
+      updateSummaryCards(data.standings || [], data.top_scorers || []);
+      updateProgressUI();
+      if (activeTeamName) {
+        await loadTeamDetail(activeTeamName, null, { silent: true });
+      }
+    } catch (error) {
+      alert(error.message || "Simulation failed.");
+    } finally {
+      setPlayButtonsBusy(false);
+      updateProgressUI();
+    }
+  }
+
+  async function loadMatchday(matchday, button) {
+    if (!matchday || matchday > playedMatchdays) {
+      return;
+    }
+    document.querySelectorAll(".vls-md-btn").forEach((item) => item.classList.remove("active-md"));
+    if (button) {
+      button.classList.add("active-md");
+    }
+    document.getElementById("history-md-title").textContent = `Matchday ${matchday} Results`;
+    const container = document.getElementById("history-results");
+    container.innerHTML = renderEmptyState("bi-hourglass-split", "Loading matchday", "Fetching the played fixtures for this round...");
+    try {
+      const response = await fetch(`/virtual-league/${SESSION_KEY}/matchday/${matchday}`);
+      const data = await response.json();
+      replaceMatchGrid(
+        "history-results",
+        data.results || [],
+        renderEmptyState("bi-calendar-x", "No results found", "There are no stored results for this matchday."),
+        { expandAll: true }
+      );
+    } catch (error) {
+      container.innerHTML = renderEmptyState("bi-exclamation-triangle", "Failed to load matchday", "Try again in a moment.");
+    }
+  }
+
+  playButtons.forEach((button) => button.addEventListener("click", playNextMatchday));
+
+  document.querySelectorAll(".vls-md-btn[data-md]").forEach((button) => {
+    button.addEventListener("click", () => loadMatchday(Number(button.dataset.md || 0), button));
+  });
+
+  document.getElementById("tab-history").addEventListener("shown.bs.tab", () => {
+    if (playedMatchdays < 1) {
+      return;
+    }
+    const active = document.querySelector(".vls-md-btn.active-md") || document.querySelector(`.vls-md-btn[data-md="${playedMatchdays}"]`);
+    if (active) {
+      loadMatchday(Number(active.dataset.md || playedMatchdays), active);
+    }
+  });
+
+  if (!activeTeamName) {
+    activeTeamName = (STANDINGS_BOOTSTRAP[0] && STANDINGS_BOOTSTRAP[0].team) || LEAGUE_TEAMS[0] || "";
+  }
+  renderTeamCards(STANDINGS_BOOTSTRAP);
+  if (INITIAL_TEAM_DETAIL) {
+    renderTeamDetail(INITIAL_TEAM_DETAIL);
+  } else if (activeTeamName) {
+    loadTeamDetail(activeTeamName, null, { silent: true });
+  }
+
+  bindMatchCardToggles(document);
+  updateProgressUI();
+})();
+</script>
+{% endblock %}

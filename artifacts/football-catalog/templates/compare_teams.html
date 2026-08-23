@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Compare teams · {{ site_name }}{% endblock %}
+{% block og_title %}{% if a.team and b.team %}{{ a.team.name }} vs {{ b.team.name }} · {% endif %}Compare teams · {{ site_name }}{% endblock %}
+{% block og_desc %}{% if a.team and b.team %}Side-by-side: form, last results, scoring & next fixtures.{% else %}Compare any two football teams: form, results, scoring and more.{% endif %}{% endblock %}
+{% block content %}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li><li class="breadcrumb-item active">Compare teams</li></ol></nav>
+  <div class="text-center mb-4">
+    <h1 class="display-6 fw-bold mb-2"><i class="bi bi-shield-shaded text-primary me-2"></i>Compare teams</h1>
+    <p class="lead text-muted">Pick two clubs and see their recent form side by side.</p>
+  </div>
+
+  <form method="get" class="dk-cmp-pickers reveal in" data-compare-form data-kind="teams">
+    <div class="dk-cmp-pick">
+      <label for="cmpA">Team A</label>
+      <div class="dk-search-wrap dk-cmp-search" data-compare-picker data-kind="teams">
+        <input type="hidden" name="a" value="{{ a_id or '' }}" data-compare-id />
+        <input id="cmpA" type="search" class="form-control" value="{{ a_label }}" placeholder="Search cached teams..." autocomplete="off" data-compare-input />
+        <div class="dk-search-suggest" data-compare-panel hidden></div>
+      </div>
+      <div class="dk-cmp-hint" data-compare-hint>{% if a.team %}{{ a.team.name }}{% if a.team.area and a.team.area.name %} · {{ a.team.area.name }}{% endif %}{% else %}Search from your offline team archive.{% endif %}</div>
+      <div class="dk-cmp-preview" data-compare-preview>
+        {% if a.team %}
+        <span class="dk-cmp-preview-thumb">{% if a.team.crest %}<img src="{{ a.team.crest }}" alt="{{ a.team.name }}">{% else %}<i class="bi bi-shield"></i>{% endif %}</span>
+        <div class="dk-cmp-preview-meta">
+          <div class="dk-cmp-preview-name">{{ a.team.name }}</div>
+          <div class="dk-cmp-preview-sub">{{ a.team.area.name if a.team.area else 'Offline archive' }}</div>
+        </div>
+        {% else %}
+        <div class="dk-cmp-preview-empty">Choose the first club to load its crest, league context, and comparison snapshot.</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="dk-cmp-vs">
+      <span>VS</span>
+      <button type="button" class="dk-cmp-swap" data-compare-swap aria-label="Swap both teams">
+        <i class="bi bi-arrow-left-right"></i>
+      </button>
+    </div>
+    <div class="dk-cmp-pick">
+      <label for="cmpB">Team B</label>
+      <div class="dk-search-wrap dk-cmp-search" data-compare-picker data-kind="teams">
+        <input type="hidden" name="b" value="{{ b_id or '' }}" data-compare-id />
+        <input id="cmpB" type="search" class="form-control" value="{{ b_label }}" placeholder="Search cached teams..." autocomplete="off" data-compare-input />
+        <div class="dk-search-suggest" data-compare-panel hidden></div>
+      </div>
+      <div class="dk-cmp-hint" data-compare-hint>{% if b.team %}{{ b.team.name }}{% if b.team.area and b.team.area.name %} · {{ b.team.area.name }}{% endif %}{% else %}Search from your offline team archive.{% endif %}</div>
+      <div class="dk-cmp-preview" data-compare-preview>
+        {% if b.team %}
+        <span class="dk-cmp-preview-thumb">{% if b.team.crest %}<img src="{{ b.team.crest }}" alt="{{ b.team.name }}">{% else %}<i class="bi bi-shield"></i>{% endif %}</span>
+        <div class="dk-cmp-preview-meta">
+          <div class="dk-cmp-preview-name">{{ b.team.name }}</div>
+          <div class="dk-cmp-preview-sub">{{ b.team.area.name if b.team.area else 'Offline archive' }}</div>
+        </div>
+        {% else %}
+        <div class="dk-cmp-preview-empty">Choose the second club to line up both sides and compare them instantly.</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="dk-cmp-actions">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right me-1"></i>Compare</button>
+      {% if a.team and b.team %}
+      <button type="button" class="btn btn-outline-primary" data-pin-comparison data-kind="teams"
+        data-id="{{ a.team.id }}-{{ b.team.id }}"
+        data-title="{{ a.team.name }} vs {{ b.team.name }}"
+        data-meta="{{ (a.team.area.name if a.team.area else '') or (b.team.area.name if b.team.area else '') }}"
+        data-href="{{ url_for('compare_teams_page', a=a.team.id, b=b.team.id) }}"
+        data-left-img="{{ a.team.crest or '' }}"
+        data-right-img="{{ b.team.crest or '' }}">
+        <i class="bi bi-pin-angle me-1"></i>Pin comparison
+      </button>
+      {% endif %}
+      <a href="{{ url_for('compare_teams_page') }}" class="btn btn-outline-secondary">Reset</a>
+    </div>
+  </form>
+
+  <section class="dk-cmp-saved">
+    <div class="dk-cmp-toolbar">
+      <div>
+        <h2 class="h6 mb-1">Pinned comparisons</h2>
+        <p class="text-muted small mb-0">Save your favorite matchups and reopen them from any device session on this browser.</p>
+      </div>
+    </div>
+    <div class="dk-saved-strip" data-saved-comparisons data-kind="teams">
+      <div class="dk-skeleton-row"><span class="dk-skeleton-card"></span><span class="dk-skeleton-card"></span></div>
+    </div>
+  </section>
+
+  {% if a.team and b.team %}
+  {% set ra = a.record %}
+  {% set rb = b.record %}
+  <div class="dk-cmp-toolbar">
+    <div class="dk-form-strip">
+      {% if ra.form %}{% for r in ra.form %}<span class="dk-form-chip f-{{ r }}">{{ r }}</span>{% endfor %}{% endif %}
+      <span class="text-muted small align-self-center">vs</span>
+      {% if rb.form %}{% for r in rb.form %}<span class="dk-form-chip f-{{ r }}">{{ r }}</span>{% endfor %}{% endif %}
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm dk-share-btn" data-dk-share data-dk-share-title="{{ a.team.name }} vs {{ b.team.name }}" data-dk-share-text="DKSPORTS comparison: {{ a.team.name }} vs {{ b.team.name }}">
+      <i class="bi bi-share me-1"></i>Share comparison
+    </button>
+  </div>
+  <div class="dk-cmp-grid reveal in">
+    {% for side, T, R in [('a', a.team, ra), ('b', b.team, rb)] %}
+    <div class="dk-cmp-card">
+      <div class="dk-cmp-card-crest">{% if T.crest %}<img src="{{ T.crest }}" alt="" />{% endif %}</div>
+      <div class="text-muted small text-uppercase">{{ T.area.name if T.area else '' }}</div>
+      <h3>{{ T.name }}</h3>
+      <div class="text-muted small mb-2">{% if T.tla %}{{ T.tla }} · {% endif %}{% if T.founded %}Founded {{ T.founded }}{% endif %}</div>
+      <div class="dk-cmp-card-badges">
+        <span class="dk-cmp-mini-chip"><i class="bi bi-award"></i>{{ R.pts }} pts</span>
+        <span class="dk-cmp-mini-chip"><i class="bi bi-bullseye"></i>{{ R.gf }} GF</span>
+        <span class="dk-cmp-mini-chip"><i class="bi bi-shield"></i>{{ R.ga }} GA</span>
+      </div>
+      <button type="button" class="dk-fav-star" data-fav-toggle data-fav-kind="teams"
+        data-fav-id="{{ T.id }}" data-fav-name="{{ T.name|e }}" data-fav-meta="{{ T.area.name if T.area else '' }}"
+        data-fav-img="{{ T.crest or '' }}" data-fav-href="{{ url_for('team_detail', team_id=T.id) }}">
+        <i class="bi bi-star"></i><i class="bi bi-star-fill"></i>
+      </button>
+      <a class="btn btn-sm btn-link mt-1" href="{{ url_for('team_detail', team_id=T.id) }}">Open team profile <i class="bi bi-arrow-right ms-1"></i></a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="dk-cmp-stats mt-4 reveal in">
+    {% macro cmp_row(lbl, va, vb, higher_better=true, fmt='') -%}
+      {% set _va = va or 0 %}{% set _vb = vb or 0 %}
+      {% set a_better = (_va > _vb) if higher_better else (_va < _vb) %}
+      {% set b_better = (_vb > _va) if higher_better else (_vb < _va) %}
+      <div class="dk-cmp-stat-row">
+        <div class="v left {{ 'win' if a_better else ('lose' if b_better else '') }}">{{ va if va is not none else 0 }}{{ fmt }}</div>
+        <div class="lbl">{{ lbl }}</div>
+        <div class="v right {{ 'win' if b_better else ('lose' if a_better else '') }}">{{ vb if vb is not none else 0 }}{{ fmt }}</div>
+      </div>
+    {%- endmacro %}
+
+    {{ cmp_row('Wins (last 6)', ra.w, rb.w) }}
+    {{ cmp_row('Draws', ra.d, rb.d, false) }}
+    {{ cmp_row('Losses', ra.l, rb.l, false) }}
+    {{ cmp_row('Points (last 6)', ra.pts, rb.pts) }}
+    {{ cmp_row('Goals scored', ra.gf, rb.gf) }}
+    {{ cmp_row('Goals conceded', ra.ga, rb.ga, false) }}
+    {{ cmp_row('Goal diff', ra.gd, rb.gd) }}
+
+    <div class="dk-cmp-stat-row">
+      <div class="v left">
+        <div class="dk-form-strip">
+          {% for r in ra.form %}<span class="dk-form-chip f-{{ r }}">{{ r }}</span>{% endfor %}
+        </div>
+      </div>
+      <div class="lbl">Recent form</div>
+      <div class="v right">
+        <div class="dk-form-strip">
+          {% for r in rb.form %}<span class="dk-form-chip f-{{ r }}">{{ r }}</span>{% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {% if a.next or b.next %}
+    <div class="dk-cmp-stat-row">
+      <div class="v left small text-muted">
+        {% if a.next %}{{ (a.next.utcDate)|fmt_dmy }} · vs {{ (a.next.awayTeam.shortName if a.next.homeTeam.id == a.team.id else a.next.homeTeam.shortName) or 'opponent' }}{% else %}—{% endif %}
+      </div>
+      <div class="lbl">Next fixture</div>
+      <div class="v right small text-muted">
+        {% if b.next %}{{ (b.next.utcDate)|fmt_dmy }} · vs {{ (b.next.awayTeam.shortName if b.next.homeTeam.id == b.team.id else b.next.homeTeam.shortName) or 'opponent' }}{% else %}—{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% else %}
+  <div class="dk-empty-state">
+    <span class="dk-empty-state-icon"><i class="bi bi-diagram-3"></i></span>
+    <div>
+      <p class="dk-empty-state-title">Choose two teams to compare</p>
+      <p class="dk-empty-state-copy">The picker will stay offline-first, show cached crests, and reopen any pinned matchup instantly.</p>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
