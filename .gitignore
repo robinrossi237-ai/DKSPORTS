@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# DKSPORTS local secrets & runtime logs
+artifacts/football-catalog/.env
+artifacts/football-catalog/app*.log

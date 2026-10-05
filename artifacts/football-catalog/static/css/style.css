@@ -546,13 +546,37 @@ body.dk-startup-gate-open {
 .gg-navbar .gg-search .btn:active { transform: translateY(0); }
 
 /* ---- Slim search on mobile ---- */
-@media (max-width: 479px) {
-  .gg-navbar .gg-search .btn { display: none; }
+@media (max-width: 767.98px) {
   .gg-navbar .gg-search { min-width: 0; }
+  .gg-navbar .gg-search .btn { display: none; }
+  .gg-navbar .gg-search .input-group { padding: 3px 10px 3px 12px; }
+  .gg-navbar .gg-search .form-control { font-size: .85rem; padding: .3rem .15rem; }
+  .gg-navbar .dk-search-wrap { min-width: 0; flex: 1 1 auto; }
+}
+@media (max-width: 479px) {
+  .gg-navbar .gg-search .form-control::placeholder { font-size: .8rem; }
 }
 
 /* ---- Three-dot nav menu ---- */
 .dk-nav-dots-btn { font-size: 1.15rem; }
+.dk-mobile-menu-btn { font-size: 1.5rem; position: relative; }
+.dk-mobile-menu-btn .dk-fav-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.dk-mobile-menu { min-width: 280px; }
+.dk-mobile-menu .dk-favs-menu { min-width: 0; max-width: none; max-height: 38vh; padding: 0; }
 .dk-nav-menu {
   min-width: 240px;
   max-height: calc(100vh - 80px);

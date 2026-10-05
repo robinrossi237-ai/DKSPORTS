@@ -821,15 +821,14 @@
   }
   var stored = (function(){ try { return localStorage.getItem('dk-theme'); } catch(e){ return null; } })();
   applyTheme(stored === 'dark' ? 'dark' : 'light');
-  var themeBtn = document.getElementById('dkThemeBtn');
-  if (themeBtn) {
+  document.querySelectorAll('[data-theme-toggle]').forEach(function(themeBtn){
     themeBtn.addEventListener('click', function(){
       var cur = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
       var next = cur === 'dark' ? 'light' : 'dark';
       try { localStorage.setItem('dk-theme', next); } catch(e){}
       applyTheme(next);
     });
-  }
+  });
 
   // ---------- Favorites library (window.DK.fav) ----------
   var FAV_KEY = 'dk-favs-v1';
@@ -985,8 +984,8 @@
     });
   }
   function renderFavMenu(){
-    var menu = document.getElementById('dkFavsMenu');
-    if (!menu) return;
+    var menus = document.querySelectorAll('[data-favs-menu]');
+    if (!menus.length) return;
     var d = readAll();
     var items = [];
     if (d.competitions && d.competitions.length) {
@@ -1037,11 +1036,10 @@
         );
       });
     }
-    if (!items.length) {
-      menu.innerHTML = '<li class="dk-favs-empty text-muted small px-3 py-2">No favorites yet. Pin a team, league, or comparison to reopen it quickly.</li>';
-    } else {
-      menu.innerHTML = items.join('');
-    }
+    var html = !items.length
+      ? '<li class="dk-favs-empty text-muted small px-3 py-2">No favorites yet. Pin a team, league, or comparison to reopen it quickly.</li>'
+      : items.join('');
+    menus.forEach(function(menu){ menu.innerHTML = html; });
   }
   document.addEventListener('click', function(e){
     var x = e.target.closest('[data-fav-remove]');
@@ -1051,15 +1049,18 @@
   });
 
   // Open favs from mobile tab bar -> trigger Bootstrap dropdown on the navbar button
+  // (on mobile the navbar favs button is hidden, so open the hamburger menu instead)
   var tabbarFavBtn = document.querySelector('[data-tabbar-favs]');
   if (tabbarFavBtn) {
     tabbarFavBtn.addEventListener('click', function(){
       var btn = document.getElementById('dkFavsBtn');
-      if (!btn) return;
+      var mobileBtn = document.getElementById('dkMobileMenuBtn');
+      var target = (btn && btn.offsetParent !== null) ? btn : mobileBtn;
+      if (!target) return;
       try {
-        var dd = bootstrap.Dropdown.getOrCreateInstance(btn);
+        var dd = bootstrap.Dropdown.getOrCreateInstance(target);
         dd.toggle();
-      } catch(e) { btn.click(); }
+      } catch(e) { target.click(); }
     });
   }
 

@@ -80,20 +80,20 @@
 
       <div class="d-flex align-items-center gap-1 flex-shrink-0">
 
-        <button type="button" class="btn btn-sm btn-icon dk-icon-btn dk-favs-btn" id="dkFavsBtn" aria-label="Favorites" title="Favorites" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        <button type="button" class="btn btn-sm btn-icon dk-icon-btn dk-favs-btn d-none d-md-inline-flex" id="dkFavsBtn" aria-label="Favorites" title="Favorites" data-bs-toggle="dropdown" data-bs-auto-close="outside">
           <i class="bi bi-star-fill"></i>
           <span class="dk-fav-count d-none" data-fav-count>0</span>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end dk-favs-menu" id="dkFavsMenu" aria-labelledby="dkFavsBtn">
+        <ul class="dropdown-menu dropdown-menu-end dk-favs-menu" id="dkFavsMenu" aria-labelledby="dkFavsBtn" data-favs-menu>
           <li class="dk-favs-empty text-muted small px-3 py-2">No favorites yet. Pin a team, league, or comparison to reopen it quickly.</li>
         </ul>
 
-        <button type="button" class="btn btn-sm btn-icon dk-icon-btn dk-theme-btn" id="dkThemeBtn" aria-label="Toggle theme" title="Toggle dark / light">
+        <button type="button" class="btn btn-sm btn-icon dk-icon-btn dk-theme-btn d-none d-md-inline-flex" id="dkThemeBtn" data-theme-toggle aria-label="Toggle theme" title="Toggle dark / light">
           <i class="bi bi-moon-stars-fill dk-theme-icon-dark"></i>
           <i class="bi bi-sun-fill dk-theme-icon-light"></i>
         </button>
 
-        <div class="dropdown">
+        <div class="dropdown d-none d-md-block">
           <button class="btn btn-sm btn-icon dk-icon-btn dk-nav-dots-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" aria-label="Navigation menu" title="Menu">
             <i class="bi bi-three-dots-vertical"></i>
           </button>
@@ -126,27 +126,59 @@
 
           </ul>
         </div>
+
+        {# Mobile: single hamburger menu (favorites + theme + all nav options) #}
+        <div class="dropdown d-md-none">
+          <button class="btn btn-sm btn-icon dk-icon-btn dk-mobile-menu-btn" id="dkMobileMenuBtn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Menu" title="Menu">
+            <i class="bi bi-list"></i>
+            <span class="dk-fav-count d-none" data-fav-count>0</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end dk-nav-menu dk-mobile-menu" aria-labelledby="dkMobileMenuBtn">
+
+            <h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Favorites</h6>
+            <ul class="list-unstyled mb-0 dk-favs-menu" data-favs-menu>
+              <li class="dk-favs-empty text-muted small px-3 py-2">No favorites yet. Pin a team, league, or comparison to reopen it quickly.</li>
+            </ul>
+
+            <hr class="dropdown-divider my-1">
+            <button type="button" class="dropdown-item" data-theme-toggle>
+              <i class="bi bi-moon-stars-fill dk-theme-icon-dark me-2"></i>
+              <i class="bi bi-sun-fill dk-theme-icon-light me-2"></i>Toggle dark / light
+            </button>
+
+            <hr class="dropdown-divider my-1">
+            <h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Navigate</h6>
+            <a class="dropdown-item {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}"><i class="bi bi-house-door me-2"></i>Home</a>
+            <a class="dropdown-item {% if request.endpoint == 'competitions_page' %}active{% endif %}" href="{{ url_for('competitions_page') }}"><i class="bi bi-trophy me-2"></i>Competitions</a>
+            <a class="dropdown-item {% if request.endpoint == 'fixtures_page' %}active{% endif %}" href="{{ url_for('fixtures_page') }}"><i class="bi bi-calendar2-week me-2"></i>Fixtures</a>
+            <a class="dropdown-item {% if request.endpoint == 'players_page' %}active{% endif %}" href="{{ url_for('players_page') }}"><i class="bi bi-person-arms-up me-2"></i>Players</a>
+            <a class="dropdown-item {% if request.endpoint == 'news_page' %}active{% endif %}" href="{{ url_for('news_page') }}"><i class="bi bi-newspaper me-2"></i>News</a>
+            <a class="dropdown-item {% if request.endpoint == 'about' %}active{% endif %}" href="{{ url_for('about') }}"><i class="bi bi-info-circle me-2"></i>About</a>
+
+            <hr class="dropdown-divider my-1">
+            <h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Compare</h6>
+            <a class="dropdown-item {% if request.endpoint == 'compare_teams_page' %}active{% endif %}" href="{{ url_for('compare_teams_page') }}"><i class="bi bi-shield-shaded me-2"></i>Teams</a>
+            <a class="dropdown-item {% if request.endpoint == 'compare_players_page' %}active{% endif %}" href="{{ url_for('compare_players_page') }}"><i class="bi bi-person-badge me-2"></i>Players</a>
+
+            <hr class="dropdown-divider my-1">
+            <h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Top Leagues</h6>
+            {% for c in free_tier_competitions[:8] %}
+            <a class="dropdown-item" href="{{ url_for('competition_detail', code=c.code) }}"><i class="bi bi-stars me-2 text-warning"></i>{{ c.name }} <span class="text-muted small">· {{ c.country }}</span></a>
+            {% endfor %}
+
+            <hr class="dropdown-divider my-1">
+            <h6 class="dropdown-header text-uppercase small fw-bold" style="letter-spacing:.06em">Games &amp; Tools</h6>
+            <a class="dropdown-item {% if request.endpoint in ('virtual_games_catalog','virtual_game','virtual_league_session') %}active{% endif %}" href="{{ url_for('virtual_games_catalog') }}"><i class="bi bi-controller me-2"></i>Virtual Games</a>
+            <a class="dropdown-item {% if request.endpoint == 'scan_page' %}active{% endif %}" href="{{ url_for('scan_page') }}"><i class="bi bi-radar me-2"></i>Data Scan</a>
+            <a class="dropdown-item {% if request.endpoint == 'settings_page' %}active{% endif %}" href="{{ url_for('settings_page') }}"><i class="bi bi-gear me-2"></i>Settings</a>
+
+          </div>
+        </div>
       </div>
 
     </div>
   </nav>
 
-  <div class="dk-sync-ribbon{% if offline_mode %} is-offline{% endif %}" data-sync-ribbon data-offline="{{ 1 if offline_mode else 0 }}">
-    <div class="container d-flex align-items-center gap-2 flex-wrap">
-      <span class="dk-sync-pulse" aria-hidden="true"></span>
-      <span class="dk-sync-ribbon-title" data-sync-ribbon-title>
-        {% if offline_mode %}Offline mode active{% else %}Sync monitor ready{% endif %}
-      </span>
-      <span class="dk-sync-ribbon-meta" data-sync-ribbon-meta>
-        {% if offline_mode %}
-          Serving your cached football catalog.
-        {% else %}
-          Checking provider and cache freshness in the background.
-        {% endif %}
-      </span>
-      <a href="{{ url_for('settings_page') }}" class="dk-sync-ribbon-link ms-auto">Open settings</a>
-    </div>
-  </div>
 
   <section
     class="dk-startup-gate"
